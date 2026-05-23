@@ -1,0 +1,38 @@
+{% if pagos_profesores %}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Profesor</th>
+                <th>Clases</th>
+                <th>Valor normal clase</th>
+                <th>% grupal/duo</th>
+                <th>Pago calculado</th>
+                <th class="text-end">Guardar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pagos_profesores %}
+            <tr>
+                <td><strong>{{ p.nombre_apellido }}</strong></td>
+                <td>{{ p.total_clases }}</td>
+                <td>
+                    <form id="formPrecio{{ p.id }}" action="/actualizar_precio_clase" method="POST"></form>
+                    <input form="formPrecio{{ p.id }}" type="hidden" name="profesor_id" value="{{ p.id }}">
+                    <input form="formPrecio{{ p.id }}" type="number" step="0.01" min="0" name="precio_clase" class="form-control" value="{{ "%.2f"|format(p.precio_clase) }}">
+                </td>
+                <td>
+                    <input form="formPrecio{{ p.id }}" type="number" step="1" min="0" max="100" name="porcentaje_grupal" class="form-control" value="{{ "%.2f"|format(p.porcentaje_grupal) }}">
+                </td>
+                <td>${{ "%.2f"|format(p.subtotal) }}</td>
+                <td class="text-end">
+                    <button form="formPrecio{{ p.id }}" class="btn btn-primary btn-sm">Guardar</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted mb-0">Todavía no hay profesores cargados.</p>
+{% endif %}

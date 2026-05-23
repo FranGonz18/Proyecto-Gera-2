@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <h3 class="mb-1">Usuarios y permisos</h3>
+        <p class="text-muted mb-0">Roles, accesos y auditoria de seguridad del sistema.</p>
+    </div>
+    <div class="user-header-actions">
+        {% if puede("auditoria.ver") %}
+        <a href="/auditoria" class="btn btn-outline-primary">Ver auditoria</a>
+        {% endif %}
+        <div class="role-mini-list" aria-label="Roles de usuarios">
+            {% for u in usuarios %}
+            <span class="role-mini-chip {{ 'is-blocked' if not u.activo else '' }}">
+                {{ u.nombre }} &middot; {{ role_labels.get(u.rol, u.rol|capitalize) }}
+            </span>
+            {% endfor %}
+        </div>
+        {% if puede("usuarios.crear") %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalUsuario">Crear usuario</button>
+        {% endif %}
+        {% if puede("roles.editar") %}
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#panelPermisosRol" aria-expanded="false" aria-controls="panelPermisosRol">
+            Permisos por rol
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.args.get("mensaje") %}
+<div class="alert alert-{{ request.args.get('tipo', 'success') }} alert-dismissible fade show" role="alert">
+    {{ request.args.get("mensaje") }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="card p-3 mb-4">
+    <div class="table-toolbar">
+        <h5 class="mb-0">Usuarios del sistema</h5>
+        <input class="form-control table-search" data-table-search="#tablaUsuarios" placeholder="Buscar usuario o rol">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle" id="tablaUsuarios">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Rol</th>
+                    <th>Profesor vinculado</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td><strong>{{ u.nombre }}</strong></td>
+                    <td><span class="badge bg-secondary">{{ role_labels.get(u.rol, u.rol|capitalize) }}</span></td>
+                    <td>{{ u.profesor or "-" }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if u.activo else 'bg-danger' }}">{{ "Activo" if u.activo else "Bloqueado" }}</span>
+                    </td>
+                    <td class="text-end">
+                        <div class="action-group">
+                            {% if puede("usuarios.editar") %}
+                            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalRol{{ u.id }}">Rol</button>
+                            <form method="POST" action="/usuarios/bloquear">
+                                <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                                <input type="hidden" name="activo" value="{{ 0 if u.activo else 1 }}">
+                                <button class="btn btn-sm {{ 'btn-outline-danger' if u.activo else 'btn-outline-success' }}" {% if usuario_actual.id == u.id %}disabled{% endif %}>
+                                    {{ "Bloquear" if u.activo else "Activar" }}
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if puede("usuarios.eliminar") and usuario_actual.id != u.id %}
+                            <a href="/eliminar_usuario/{{ u.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Seguro que queres bloquear este usuario?')">Eliminar</a>
+                            {% endif %}
+                            {% if usuario_actual.id == u.id %}
+                            <span class="text-muted small">Usuario actual</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+
+                <div class="modal fade" id="modalRol{{ u.id }}" tabindex="-1">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="POST" action="/usuarios/cambiar_rol">
+                        <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                        <div class="modal-header">
+                          <h5 class="modal-title">Editar rol de {{ u.nombre }}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <label>Rol</label>
+                          <select name="rol" class="form-control mb-3">
+                            {% for rol in roles %}
+                            <option value="{{ rol.codigo }}" {% if u.rol == rol.codigo %}selected{% endif %}>{{ rol.nombre }}</option>
+                            {% endfor %}
+                          </select>
+                          <label>Profesor vinculado</label>
+                          <select name="profesor_id" class="form-control">
+                            <option value="">No aplica</option>
+                            {% for profesor in profesores %}
+                            <option value="{{ profesor.id }}" {% if u.profesor_id == profesor.id %}selected{% endif %}>{{ profesor.nombre_apellido }}</option>
+                            {% endfor %}
+                          </select>
+                          <small class="text-muted">Usalo para que un usuario profesor vea solo su calendario y sus liquidaciones.</small>
+                        </div>
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                          <button class="btn btn-primary">Guardar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% else %}
+                <tr><td colspan="5" class="text-muted text-center py-4">Todavia no hay usuarios cargados.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if puede("roles.editar") %}
+<div class="card p-3 collapse" id="panelPermisosRol">
+    <h5 class="mb-3">Permisos por rol</h5>
+    <div class="accordion" id="accordionPermisos">
+        {% for rol in roles %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rol{{ rol.codigo }}">
+                    {{ rol.nombre }}
+                </button>
+            </h2>
+            <div id="rol{{ rol.codigo }}" class="accordion-collapse collapse" data-bs-parent="#accordionPermisos">
+                <div class="accordion-body">
+                    <form method="POST" action="/roles/permisos">
+                        <input type="hidden" name="rol" value="{{ rol.codigo }}">
+                        <div class="permissions-grid">
+                            {% for permiso in permisos %}
+                            <label class="permission-item">
+                                <input type="checkbox" name="permisos" value="{{ permiso.codigo }}"
+                                       {% if permiso.codigo in permisos_por_rol.get(rol.codigo, []) %}checked{% endif %}
+                                       {% if rol.codigo == "admin" %}checked disabled{% endif %}>
+                                <span>
+                                    <strong>{{ permiso.modulo }}</strong>
+                                    <small>{{ permiso.descripcion }}</small>
+                                </span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div class="text-end mt-3">
+                            <button class="btn btn-primary" {% if rol.codigo == "admin" %}disabled{% endif %}>Guardar permisos</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="modalUsuario" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="/agregar_usuario" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Crear usuario</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <label>Nombre de usuario</label>
+          <input name="nombre" class="form-control mb-3" required>
+
+          <label>Contrasena</label>
+          <input type="password" name="password" class="form-control mb-3" required>
+
+          <label>Tipo de usuario</label>
+          <select name="rol" class="form-control mb-3" required>
+            {% for rol in roles %}
+            <option value="{{ rol.codigo }}">{{ rol.nombre }}</option>
+            {% endfor %}
+          </select>
+
+          <label>Profesor vinculado</label>
+          <select name="profesor_id" class="form-control">
+            <option value="">No aplica</option>
+            {% for profesor in profesores %}
+            <option value="{{ profesor.id }}">{{ profesor.nombre_apellido }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary">Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.user-header-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.role-mini-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 520px;
+}
+
+.role-mini-chip {
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-card));
+    border: 1px solid color-mix(in srgb, var(--app-primary) 24%, var(--app-border));
+    border-radius: 999px;
+    color: var(--app-text);
+    font-size: 11px;
+    line-height: 1;
+    padding: 6px 9px;
+    white-space: nowrap;
+}
+
+.role-mini-chip.is-blocked {
+    opacity: 0.58;
+    text-decoration: line-through;
+}
+
+.permissions-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.permission-item {
+    align-items: flex-start;
+    background: color-mix(in srgb, var(--app-card) 88%, var(--app-bg));
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+}
+
+.permission-item input {
+    margin-top: 4px;
+}
+
+.permission-item small {
+    color: var(--app-muted);
+    display: block;
+}
+</style>
+
+{% endblock %}

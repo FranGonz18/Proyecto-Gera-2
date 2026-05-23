@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row">
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Clases</h5>
+            <h2>{{ total_clases }}</h2>
+        </div>
+    </div>
+
+    {% if puede("dashboard.financiero") %}
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Ingresos</h5>
+            <h2>${{ ingresos }}</h2>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Pagos profesores</h5>
+            <h2>${{ pagos }}</h2>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Ganancia</h5>
+            <h2>${{ ganancia }}</h2>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if puede("dashboard.financiero") %}
+<div class="row mt-3">
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Alumnos deudores</h5>
+            <h2>{{ alumnos_deudores }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Deuda total</h5>
+            <h2>${{ deuda_total }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Saldo a favor</h5>
+            <h2>${{ saldo_a_favor_total }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 text-center">
+            <h5>Descuentos</h5>
+            <h2>${{ descuentos }}</h2>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if puede("ajustes.ver") %}
+<div class="row mt-3">
+    <div class="col-md-3">
+        <a href="/ajustes" class="card p-3 text-center text-decoration-none">
+            <h5>Ajustes manuales</h5>
+            <h2>${{ ajustes_manuales }}</h2>
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="card p-3 mt-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+        <div>
+            <h5 class="mb-1">Alertas</h5>
+            <p class="text-muted mb-0">Pendientes importantes para revisar hoy.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/deudores" class="btn btn-outline-primary btn-sm">Ver deudores</a>
+            <a href="/clases" class="btn btn-outline-primary btn-sm">Ver clases</a>
+            {% if puede("caja.ver") %}
+            <a href="/caja" class="btn btn-outline-primary btn-sm">Ver caja</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="alerts-grid">
+        {% if puede("deudores.ver") %}
+        <a href="/deudores" class="alert-card danger">
+            <span>Cuotas vencidas</span>
+            <strong>{{ alertas.cuotas_vencidas.cantidad }}</strong>
+            <small>${{ "%.2f"|format(alertas.cuotas_vencidas.total) }} pendiente</small>
+        </a>
+        {% endif %}
+
+        {% if puede("deudores.ver") %}
+        <a href="/deudores" class="alert-card warning">
+            <span>Matrículas pendientes</span>
+            <strong>{{ alertas.matriculas_pendientes.cantidad }}</strong>
+            <small>${{ "%.2f"|format(alertas.matriculas_pendientes.total) }} pendiente</small>
+        </a>
+        {% endif %}
+
+        <a href="/clases" class="alert-card primary">
+            <span>Clases por recuperar</span>
+            <strong>{{ alertas.clases_por_recuperar }}</strong>
+            <small>Canceladas sin recuperación</small>
+        </a>
+
+        <a href="/clases" class="alert-card primary">
+            <span>Asistencias pendientes</span>
+            <strong>{{ alertas.asistencia_pendiente }}</strong>
+            <small>Clases pasadas sin cerrar</small>
+        </a>
+
+        {% if puede("liquidaciones.ver") %}
+        <a href="/caja" class="alert-card success">
+            <span>Profesores a revisar</span>
+            <strong>{{ alertas.profesores_con_pagos }}</strong>
+            <small>Con clases cargadas</small>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if puede("estadisticas.ver") %}
+<div class="card p-3 mt-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div>
+            <h5 class="mb-1">Estadisticas</h5>
+            <p class="text-muted mb-0">Analisis financiero, academico y operativo para revisar cuando lo necesites.</p>
+        </div>
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#panelEstadisticas" aria-expanded="false" aria-controls="panelEstadisticas">
+            Abrir estadisticas
+        </button>
+    </div>
+    <div class="collapse mt-3" id="panelEstadisticas">
+        <div class="dashboard-actions">
+            <a href="/estadisticas" class="action-card primary">
+                <span>Centro de estadisticas</span>
+                <strong>Ver analytics</strong>
+                <small>Ingresos, morosidad, profesores, clases, promociones y recuperos.</small>
+            </a>
+            <a href="/estadisticas/reporte" class="action-card success" target="_blank">
+                <span>Reporte imprimible</span>
+                <strong>PDF / imprimir</strong>
+                <small>Resumen ejecutivo listo para revisar o guardar.</small>
+            </a>
+            <a href="/estadisticas/exportar_csv" class="action-card warning">
+                <span>Datos</span>
+                <strong>Exportar CSV</strong>
+                <small>Descarga los indicadores para trabajar en planilla.</small>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if puede("backup.descargar") %}
+<div class="card p-3 mt-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div>
+            <h5 class="mb-1">Copia de seguridad</h5>
+            <p class="text-muted mb-0">Descarga una copia completa de la base de datos del sistema.</p>
+        </div>
+        <a href="/backup_base_datos" class="btn btn-primary">Descargar backup</a>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.alerts-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.dashboard-actions {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.alert-card,
+.action-card {
+    background: color-mix(in srgb, var(--alert-color) 10%, var(--app-card));
+    border: 1px solid color-mix(in srgb, var(--alert-color) 40%, var(--app-border));
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+    padding: 14px;
+    text-decoration: none;
+}
+
+.alert-card:hover,
+.action-card:hover {
+    border-color: var(--alert-color);
+    color: var(--app-text);
+    transform: translateY(-1px);
+}
+
+.alert-card span,
+.alert-card small,
+.action-card span,
+.action-card small {
+    color: var(--app-muted);
+    display: block;
+}
+
+.alert-card strong,
+.action-card strong {
+    display: block;
+    font-size: 28px;
+    line-height: 1.1;
+    margin: 6px 0;
+}
+
+.alert-card.danger {
+    --alert-color: var(--app-danger);
+}
+
+.alert-card.warning {
+    --alert-color: #f59e0b;
+}
+
+.alert-card.primary {
+    --alert-color: var(--app-primary);
+}
+
+.alert-card.success {
+    --alert-color: var(--app-success);
+}
+
+.action-card.primary {
+    --alert-color: var(--app-primary);
+}
+
+.action-card.success {
+    --alert-color: var(--app-success);
+}
+
+.action-card.warning {
+    --alert-color: #f59e0b;
+}
+
+@media (max-width: 1200px) {
+    .alerts-grid,
+    .dashboard-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .alerts-grid,
+    .dashboard-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+{% endblock %}

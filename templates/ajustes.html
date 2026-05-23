@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+    <div>
+        <h3 class="mb-1">Ajustes manuales</h3>
+        <p class="text-muted mb-0">Correcciones administrativas trazables, con auditoria y anulacion segura.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-success" href="/ajustes/exportar_csv">Exportar CSV</a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjuste">Nuevo ajuste</button>
+    </div>
+</div>
+
+<div class="account-summary mb-3">
+    <div><span>Ajustes cargados</span><strong>{{ resumen.cantidad or 0 }}</strong></div>
+    <div><span>Suman</span><strong>${{ "%.2f"|format(resumen.positivos or 0) }}</strong></div>
+    <div><span>Restan</span><strong>${{ "%.2f"|format(resumen.negativos or 0) }}</strong></div>
+    <div><span>Anulados</span><strong>{{ resumen.anulados or 0 }}</strong></div>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="GET" class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label>Desde</label>
+            <input type="date" name="desde" class="form-control" value="{{ filtros.desde }}">
+        </div>
+        <div class="col-md-2">
+            <label>Hasta</label>
+            <input type="date" name="hasta" class="form-control" value="{{ filtros.hasta }}">
+        </div>
+        <div class="col-md-2">
+            <label>Categoria</label>
+            <select name="categoria" class="form-control">
+                <option value="">Todas</option>
+                {% for c in categorias_ajuste %}
+                <option value="{{ c }}" {% if filtros.categoria == c %}selected{% endif %}>{{ c|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todos</option>
+                <option value="activo" {% if filtros.estado == "activo" %}selected{% endif %}>Activo</option>
+                <option value="anulado" {% if filtros.estado == "anulado" %}selected{% endif %}>Anulado</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Tipo</label>
+            <select name="tipo_ajuste" class="form-control">
+                <option value="">Todos</option>
+                {% for t in tipos_ajuste %}
+                <option value="{{ t }}" {% if filtros.tipo_ajuste == t %}selected{% endif %}>{{ t.replace("_", " ")|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
+</div>
+
+<div class="card p-3">
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Categoria</th>
+                    <th>Tipo</th>
+                    <th>Monto</th>
+                    <th>Relacionado</th>
+                    <th>Motivo</th>
+                    <th>Usuario</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ajuste in ajustes %}
+                <tr>
+                    <td>{{ ajuste.fecha }}</td>
+                    <td><span class="badge bg-secondary">{{ ajuste.categoria }}</span></td>
+                    <td>{{ ajuste.tipo_ajuste.replace("_", " ")|capitalize }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if ajuste.signo == 'positivo' else 'bg-danger' }}">
+                            {{ '+' if ajuste.signo == 'positivo' else '-' }} ${{ "%.2f"|format(ajuste.monto or 0) }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ ajuste.alumno or ajuste.profesor or ajuste.entidad_relacionada or "-" }}
+                        {% if ajuste.liquidacion_id %}<div class="text-muted small">Liquidacion #{{ ajuste.liquidacion_id }}</div>{% endif %}
+                    </td>
+                    <td>
+                        <strong>{{ ajuste.motivo }}</strong>
+                        {% if ajuste.observacion %}<div class="text-muted small">{{ ajuste.observacion }}</div>{% endif %}
+                    </td>
+                    <td>{{ ajuste.usuario_creador_nombre or "-" }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-success' if ajuste.estado == 'activo' else 'bg-danger' }}">{{ ajuste.estado }}</span>
+                        {% if ajuste.motivo_anulacion %}<div class="text-muted small">{{ ajuste.motivo_anulacion }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if ajuste.estado == "activo" %}
+                        <form method="POST" action="/anular_ajuste_manual" onsubmit="return confirm('Anular este ajuste? Se generara el reverso correspondiente.')">
+                            <input type="hidden" name="ajuste_id" value="{{ ajuste.id }}">
+                            <input type="hidden" name="redirect_to" value="/ajustes">
+                            <input name="motivo_anulacion" class="form-control form-control-sm mb-1" placeholder="Motivo de anulacion" required>
+                            <button class="btn btn-sm btn-outline-danger">Anular</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No hay ajustes para mostrar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAjuste" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="/guardar_ajuste_manual">
+        <input type="hidden" name="redirect_to" value="/ajustes">
+        <div class="modal-header">
+          <h5 class="modal-title">Nuevo ajuste manual</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label>Categoria</label>
+              <select name="categoria" class="form-control" required>
+                {% for c in categorias_ajuste %}
+                <option value="{{ c }}">{{ c|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Tipo</label>
+              <select name="tipo_ajuste" class="form-control" required>
+                {% for t in tipos_ajuste %}
+                <option value="{{ t }}">{{ t.replace("_", " ")|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Fecha</label>
+              <input type="date" name="fecha" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label>Impacto</label>
+              <select name="signo" class="form-control">
+                <option value="positivo">Suma</option>
+                <option value="negativo">Resta</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label>Monto</label>
+              <input type="number" step="0.01" min="0.01" name="monto" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label>Entidad relacionada</label>
+              <input name="entidad_relacionada" class="form-control" placeholder="Opcional">
+            </div>
+            <div class="col-md-6">
+              <label>Alumno</label>
+              <select name="alumno_id" class="form-control">
+                <option value="">No aplica</option>
+                {% for alumno in alumnos %}
+                <option value="{{ alumno.id }}">{{ alumno.apellido_nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Profesor</label>
+              <select name="profesor_id" class="form-control">
+                <option value="">No aplica</option>
+                {% for profesor in profesores %}
+                <option value="{{ profesor.id }}">{{ profesor.nombre_apellido }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label>Motivo obligatorio</label>
+              <input name="motivo" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label>Observacion interna</label>
+              <textarea name="observacion" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary">Guardar ajuste</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

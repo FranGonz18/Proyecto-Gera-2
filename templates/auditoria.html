@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">Auditoria</h3>
+        <p class="text-muted mb-0">Historial de acciones importantes del sistema.</p>
+    </div>
+    <a href="/" class="btn btn-outline-primary">Volver al dashboard</a>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="GET" action="/auditoria" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label>Modulo</label>
+            <select name="modulo" class="form-control">
+                <option value="">Todos</option>
+                {% for m in modulos %}
+                <option value="{{ m.modulo }}" {% if filtro_modulo == m.modulo %}selected{% endif %}>{{ m.modulo|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label>Acción</label>
+            <select name="accion" class="form-control">
+                <option value="">Todas</option>
+                {% for a in acciones %}
+                <option value="{{ a.accion }}" {% if filtro_accion == a.accion %}selected{% endif %}>{{ a.accion|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary w-100">Filtrar</button>
+                <a href="/auditoria" class="btn btn-outline-secondary">Limpiar</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card p-3">
+    <div class="table-toolbar">
+        <h5 class="mb-0">Registros</h5>
+        <input class="form-control table-search" data-table-search="#tablaAuditoria" placeholder="Buscar usuario, módulo, acción o detalle">
+    </div>
+
+    {% if registros %}
+    <div class="table-responsive">
+        <table class="table align-middle" id="tablaAuditoria">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Usuario</th>
+                    <th>Modulo</th>
+                    <th>Acción</th>
+                    <th>Entidad</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in registros %}
+                <tr>
+                    <td>{{ r.fecha }}</td>
+                    <td>
+                        <strong>{{ r.usuario_nombre }}</strong>
+                        <div class="text-muted small">{{ r.usuario_rol }}</div>
+                    </td>
+                    <td>{{ r.modulo|capitalize }}</td>
+                    <td><span class="badge bg-primary">{{ r.accion }}</span></td>
+                    <td>{{ r.entidad }}{% if r.entidad_id %} #{{ r.entidad_id }}{% endif %}</td>
+                    <td>{{ r.detalle }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Todavía no hay acciones registradas.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

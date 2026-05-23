@@ -1,0 +1,39 @@
+{% if cuotas %}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th>Periodo</th>
+                <th>Normal</th>
+                <th>Descuento</th>
+                <th>A pagar</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in cuotas %}
+            <tr>
+                <td>{{ c.apellido_nombre }}</td>
+                <td>{{ c.mes }}/{{ c.anio }}</td>
+                <td>${{ "%.2f"|format(c.monto_normal) }}</td>
+                <td>${{ "%.2f"|format(c.descuento) }}</td>
+                <td>${{ "%.2f"|format(c.monto_pagado) }}</td>
+                <td>{{ c.estado|capitalize }}</td>
+                <td class="text-end">
+                    {% if c.estado != "pagado" %}
+                    <button class="btn btn-success btn-sm" onclick="marcarPago({{ c.id }}, 'cuota', 'pagado')">Marcar pagado</button>
+                    {% else %}
+                    <span class="text-muted small">{{ c.fecha_pago }}</span>
+                    <button class="btn btn-outline-secondary btn-sm ms-2" onclick="marcarPago({{ c.id }}, 'cuota', 'pendiente')">Volver pendiente</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted mb-0">No hay cuotas registradas.</p>
+{% endif %}

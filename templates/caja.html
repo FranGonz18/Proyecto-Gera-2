@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+    <div>
+        <h3 class="mb-1">Caja</h3>
+        <p class="text-muted mb-0">Todo lo financiero del sistema en un solo lugar.</p>
+    </div>
+    <a href="/" class="btn btn-outline-primary">Volver al dashboard</a>
+</div>
+
+<div class="cash-summary mb-4">
+    <div class="card p-3">
+        <span>Ingresos</span>
+        <strong>${{ "%.2f"|format(resumen.ingresos) }}</strong>
+    </div>
+    {% if puede("dashboard.financiero") %}
+    <div class="card p-3">
+        <span>Pagos profesores</span>
+        <strong>${{ "%.2f"|format(resumen.pagos_profesores) }}</strong>
+    </div>
+    <div class="card p-3">
+        <span>Ganancia</span>
+        <strong>${{ "%.2f"|format(resumen.ganancia) }}</strong>
+    </div>
+    {% endif %}
+    <div class="card p-3">
+        <span>Deuda total</span>
+        <strong>${{ "%.2f"|format(resumen.deuda_total) }}</strong>
+    </div>
+</div>
+
+<div class="cash-grid">
+    {% if puede("pagos.ver") %}
+    <a href="/pagos" class="cash-card primary">
+        <span>Cobros y cuotas</span>
+        <strong>Pagos</strong>
+        <small>Cuotas mensuales, matriculas, pagos parciales y comprobantes.</small>
+    </a>
+    {% endif %}
+
+    {% if puede("promociones.ver") %}
+    <a href="/promociones" class="cash-card success">
+        <span>Descuentos</span>
+        <strong>Promociones</strong>
+        <small>Promociones automaticas, manuales, vigencias e impacto economico.</small>
+    </a>
+    {% endif %}
+
+    {% if puede("liquidaciones.ver") %}
+    <a href="/liquidaciones" class="cash-card warning">
+        <span>Profesores</span>
+        <strong>Liquidaciones</strong>
+        <small>Calculo de pagos, comisiones, ajustes y estados de liquidacion.</small>
+    </a>
+    {% endif %}
+
+    {% if puede("deudores.ver") %}
+    <a href="/deudores" class="cash-card danger">
+        <span>Seguimiento</span>
+        <strong>Deudores</strong>
+        <small>Alumnos con saldo pendiente, antiguedad de deuda y ultimo pago.</small>
+    </a>
+    {% endif %}
+
+    {% if puede("ajustes.ver") %}
+    <a href="/ajustes" class="cash-card neutral">
+        <span>Correcciones</span>
+        <strong>Ajustes manuales</strong>
+        <small>Redondeos, bonificaciones, recargos y correcciones auditadas.</small>
+    </a>
+    {% endif %}
+</div>
+
+<div class="card p-3 mt-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <div>
+            <h5 class="mb-1">Pendientes de caja</h5>
+            <p class="text-muted mb-0">Accesos rapidos a lo que conviene revisar seguido.</p>
+        </div>
+    </div>
+    <div class="cash-alerts mt-3">
+        {% if puede("deudores.ver") %}
+        <a href="/deudores" class="cash-mini danger">
+            <span>Cuotas vencidas</span>
+            <strong>{{ alertas.cuotas_vencidas.cantidad }}</strong>
+            <small>${{ "%.2f"|format(alertas.cuotas_vencidas.total) }}</small>
+        </a>
+        <a href="/deudores" class="cash-mini warning">
+            <span>Matriculas pendientes</span>
+            <strong>{{ alertas.matriculas_pendientes.cantidad }}</strong>
+            <small>${{ "%.2f"|format(alertas.matriculas_pendientes.total) }}</small>
+        </a>
+        {% endif %}
+        {% if puede("liquidaciones.ver") %}
+        <a href="/liquidaciones" class="cash-mini primary">
+            <span>Profesores a revisar</span>
+            <strong>{{ alertas.profesores_con_pagos }}</strong>
+            <small>Con clases cargadas</small>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.cash-summary,
+.cash-alerts,
+.cash-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.cash-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.cash-summary span {
+    color: var(--app-muted);
+    display: block;
+    font-size: 13px;
+}
+
+.cash-summary strong {
+    display: block;
+    font-size: 24px;
+}
+
+.cash-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cash-alerts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cash-card,
+.cash-mini {
+    background: color-mix(in srgb, var(--cash-color) 10%, var(--app-card));
+    border: 1px solid color-mix(in srgb, var(--cash-color) 38%, var(--app-border));
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+    display: block;
+    padding: 16px;
+    text-decoration: none;
+}
+
+.cash-card:hover,
+.cash-mini:hover {
+    border-color: var(--cash-color);
+    color: var(--app-text);
+    transform: translateY(-1px);
+}
+
+.cash-card span,
+.cash-card small,
+.cash-mini span,
+.cash-mini small {
+    color: var(--app-muted);
+    display: block;
+}
+
+.cash-card strong,
+.cash-mini strong {
+    display: block;
+    font-size: 24px;
+    margin: 6px 0;
+}
+
+.cash-card.primary,
+.cash-mini.primary {
+    --cash-color: var(--app-primary);
+}
+
+.cash-card.success {
+    --cash-color: var(--app-success);
+}
+
+.cash-card.warning,
+.cash-mini.warning {
+    --cash-color: #f59e0b;
+}
+
+.cash-card.danger,
+.cash-mini.danger {
+    --cash-color: var(--app-danger);
+}
+
+.cash-card.neutral {
+    --cash-color: #64748b;
+}
+
+@media (max-width: 1100px) {
+    .cash-summary,
+    .cash-grid,
+    .cash-alerts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .cash-summary,
+    .cash-grid,
+    .cash-alerts {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,1174 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">Clases</h3>
+    {% if puede_gestionar_clases %}
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="abrirCrearAhora()">Nueva clase</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if mensaje %}
+<div class="alert alert-{{ tipo }} alert-dismissible fade show" role="alert">
+    {{ mensaje }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="summary-strip mb-3" id="resumenDia">
+    <div class="summary-item">
+        <span>Clases hoy</span>
+        <strong id="resumenClasesHoy">0</strong>
+    </div>
+    <div class="summary-item">
+        <span>Presentes</span>
+        <strong id="resumenPresentesHoy">0</strong>
+    </div>
+    <div class="summary-item">
+        <span>Canceladas</span>
+        <strong id="resumenCanceladasHoy">0</strong>
+    </div>
+    <div class="summary-item">
+        <span>Profesores hoy</span>
+        <strong id="resumenProfesoresHoy">0</strong>
+    </div>
+    <div class="summary-item">
+        <span>Recuperos pendientes</span>
+        <strong>{{ recuperos_pendientes|length }}</strong>
+    </div>
+</div>
+
+{% if puede("recuperos.ver") %}
+<div class="mini-recovery-card mb-3">
+    <div>
+        <span>Recuperos</span>
+        <strong>{{ recuperos_pendientes|length }} pendientes</strong>
+        <small>Acceso rapido para reprogramar o revisar clases recuperables.</small>
+    </div>
+    <div class="mini-recovery-actions">
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#miniRecuperosClases" aria-expanded="false" aria-controls="miniRecuperosClases">
+            Ver pendientes
+        </button>
+        <a class="btn btn-primary btn-sm" href="/recuperos">Gestionar</a>
+    </div>
+</div>
+
+<div class="collapse mb-3" id="miniRecuperosClases">
+    <div class="mini-recovery-list">
+        {% if recuperos_pendientes %}
+            {% for r in recuperos_pendientes %}
+                {% if loop.index <= 6 %}
+                <div class="mini-recovery-item">
+                    <div>
+                        <strong>{{ r.alumno }}</strong>
+                        <span>{{ r.estado|capitalize }} &middot; {{ r.motivo.replace("_", " ") }}</span>
+                    </div>
+                    <small>Original {{ r.fecha_original or "-" }} &middot; Vence {{ r.fecha_limite or "-" }}</small>
+                    <a class="btn btn-sm btn-outline-primary" href="/recuperos?alumno_id={{ r.alumno_id }}">Abrir</a>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p class="text-muted mb-0">No hay recuperos pendientes.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="toolbar-card mb-3">
+    <div class="toolbar-main">
+        <div>
+            <h5 class="mb-1">Calendario semanal</h5>
+            <small>Usa los filtros solo cuando necesites encontrar una clase puntual.</small>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#panelFiltros">
+            Filtros
+        </button>
+    </div>
+
+    <div class="collapse mt-3" id="panelFiltros">
+        <div class="filters-grid">
+            <div>
+                <label>Profesor</label>
+                <select id="filtroProfesor" class="form-control filtro">
+                    <option value="">Todos</option>
+                    {% for p in profesores %}
+                    <option value="{{ p.id }}">{{ p.nombre_apellido }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label>Alumno</label>
+                <select id="filtroAlumno" class="form-control filtro">
+                    <option value="">Todos</option>
+                    {% for a in alumnos %}
+                    <option value="{{ a.id }}">{{ a.apellido_nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label>Estado</label>
+                <select id="filtroEstado" class="form-control filtro">
+                    <option value="">Todos</option>
+                    {% for estado in estados_clase %}
+                    <option value="{{ estado }}">{{ estado|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label>Periodo</label>
+                <select id="filtroPeriodo" class="form-control filtro">
+                    <option value="">Todos</option>
+                    <option value="hoy">Hoy</option>
+                    <option value="semana">Esta semana</option>
+                    <option value="mes">Este mes</option>
+                </select>
+            </div>
+
+            <div>
+                <label>Alumnos</label>
+                <select id="filtroAlumnos" class="form-control filtro">
+                    <option value="">Todos</option>
+                    <option value="con">Con alumnos</option>
+                    <option value="sin">Sin alumnos</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="classes-layout">
+    <div class="calendar-panel">
+        <div id="calendar"></div>
+    </div>
+
+    <div class="agenda-toggle-row">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#panelAgendaClases" aria-expanded="false" aria-controls="panelAgendaClases">
+            Abrir agenda y automáticas
+        </button>
+    </div>
+
+    <aside class="side-panel collapse" id="panelAgendaClases">
+        <ul class="nav nav-tabs compact-tabs" id="clasesTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="agenda-tab" data-bs-toggle="tab" data-bs-target="#agendaPane" type="button" role="tab">Agenda</button>
+            </li>
+            {% if puede_gestionar_clases %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="automaticas-tab" data-bs-toggle="tab" data-bs-target="#automaticasPane" type="button" role="tab">Automáticas</button>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="tab-content side-content">
+            <div class="tab-pane fade show active" id="agendaPane" role="tabpanel">
+                <div id="agendaLista"></div>
+            </div>
+
+            {% if puede_gestionar_clases %}
+            <div class="tab-pane fade" id="automaticasPane" role="tabpanel">
+                <form method="POST" action="/clases_repetidas">
+                    <label>Profesor</label>
+                    <select name="profesor" class="form-control mb-2" required>
+                        {% for p in profesores %}
+                        <option value="{{ p.id }}">{{ p.nombre_apellido }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label>Inicio</label>
+                            <input type="date" name="inicio" class="form-control mb-2">
+                        </div>
+                        <div class="col-6">
+                            <label>Fin</label>
+                            <input type="date" name="fin" class="form-control mb-2">
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label>Día</label>
+                            <select name="dia" class="form-control mb-2" required>
+                                <option value="0">Lunes</option>
+                                <option value="1">Martes</option>
+                                <option value="2">Miercoles</option>
+                                <option value="3">Jueves</option>
+                                <option value="4">Viernes</option>
+                                <option value="5">Sabado</option>
+                                <option value="6">Domingo</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label>Cada</label>
+                            <select name="cada_semana" class="form-control mb-2">
+                                <option value="1">1 semana</option>
+                                <option value="2">2 semanas</option>
+                                <option value="3">3 semanas</option>
+                                <option value="4">4 semanas</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label>Hora</label>
+                            <input type="time" name="hora" class="form-control mb-2" required>
+                        </div>
+                        <div class="col-6">
+                            <label>Duración</label>
+                            <input type="number" step="0.25" min="0.25" name="duracion" class="form-control mb-2" placeholder="1.5" required>
+                        </div>
+                    </div>
+
+                    <label>Tipo de clase</label>
+                    <select name="tipo_clase_id" class="form-control mb-2">
+                        {% for tipo in tipos_clase %}
+                        <option value="{{ tipo.id }}">{{ tipo.nombre|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Alumnos</label>
+                    <select name="alumnos" multiple class="form-control mb-2" style="height:120px;">
+                        {% for a in alumnos %}
+                        <option value="{{ a.id }}">{{ a.apellido_nombre }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <button class="btn btn-success w-100">Crear recurrencia</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+</div>
+
+{% if puede_gestionar_clases %}
+<!-- MODAL CREAR CLASE -->
+<div class="modal fade" id="modalCrear" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <form method="POST" action="/agregar_clase">
+        <div class="modal-header">
+          <h5 class="modal-title">Crear clase</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <label>Fecha y hora</label>
+          <input type="datetime-local" name="fecha" id="crearFecha" class="form-control mb-2" required>
+
+          <label>Profesor</label>
+          <select name="profesor" class="form-control mb-2" required>
+            {% for p in profesores %}
+            <option value="{{ p.id }}">{{ p.nombre_apellido }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label>Duración</label>
+              <input type="number" step="0.25" min="0.25" name="duracion" class="form-control mb-2" placeholder="1.5" required>
+            </div>
+            <div class="col-md-6">
+              <label>Tipo de clase</label>
+              <select name="tipo_clase_id" class="form-control mb-2">
+                {% for tipo in tipos_clase %}
+                <option value="{{ tipo.id }}">{{ tipo.nombre|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label>Estado</label>
+              <select name="estado" class="form-control mb-2">
+                {% for estado in estados_clase %}
+                <option value="{{ estado }}">{{ estado|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <label>Motivo de cancelación</label>
+          <select name="motivo_cancelacion" class="form-control mb-2">
+            {% for motivo in motivos_cancelacion %}
+            <option value="{{ motivo }}">{% if motivo %}{{ motivo|capitalize }}{% else %}Sin motivo{% endif %}</option>
+            {% endfor %}
+          </select>
+
+          <label>Recupera una clase cancelada</label>
+          <select name="recuperacion_de" class="form-control mb-2">
+            <option value="">No es recuperación</option>
+            {% for c in clases_recuperables %}
+            <option value="{{ c.id }}">#{{ c.id }} - {{ c.profesor }} - {{ c.fecha }}</option>
+            {% endfor %}
+          </select>
+
+          <label>Alumnos</label>
+          <select name="alumnos" multiple class="form-control" style="height:150px;">
+            {% for a in alumnos %}
+            <option value="{{ a.id }}">{{ a.apellido_nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-success">Crear</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- MODAL GESTION -->
+<div class="modal fade" id="modalGestion" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="tituloGestion">Gestionar clase</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        {% if puede_gestionar_clases %}
+        <form method="POST" action="/editar_clase" class="mb-4">
+          <input type="hidden" name="clase_id" id="editarClaseId">
+
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label>Profesor</label>
+              <select name="profesor" id="editarProfesor" class="form-control" required>
+                {% for p in profesores %}
+                <option value="{{ p.id }}">{{ p.nombre_apellido }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label>Fecha y hora</label>
+              <input type="datetime-local" name="fecha" id="editarFecha" class="form-control" required>
+            </div>
+
+            <div class="col-md-2">
+              <label>Duración</label>
+              <input type="number" step="0.25" min="0.25" name="duracion" id="editarDuracion" class="form-control" required>
+            </div>
+
+            <div class="col-md-2">
+              <label>Tipo</label>
+              <select name="tipo_clase_id" id="editarTipoClase" class="form-control" required>
+                {% for tipo in tipos_clase %}
+                <option value="{{ tipo.id }}">{{ tipo.nombre|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label>Estado</label>
+              <select name="estado" id="editarEstado" class="form-control" required>
+                {% for estado in estados_clase %}
+                <option value="{{ estado }}">{{ estado|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2 mt-2">
+            <div class="col-md-6">
+              <label>Motivo de cancelación</label>
+              <select name="motivo_cancelacion" id="editarMotivoCancelacion" class="form-control">
+                {% for motivo in motivos_cancelacion %}
+                <option value="{{ motivo }}">{% if motivo %}{{ motivo|capitalize }}{% else %}Sin motivo{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label>Recupera una clase cancelada</label>
+              <select name="recuperacion_de" id="editarRecuperacionDe" class="form-control">
+                <option value="">No es recuperación</option>
+                {% for c in clases_recuperables %}
+                <option value="{{ c.id }}">#{{ c.id }} - {{ c.profesor }} - {{ c.fecha }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <label class="mt-3">Alumnos asignados</label>
+          <select name="alumnos" id="editarAlumnos" multiple class="form-control" style="height:150px;">
+            {% for a in alumnos %}
+            <option value="{{ a.id }}">{{ a.apellido_nombre }}</option>
+            {% endfor %}
+          </select>
+
+          <button class="btn btn-primary w-100 mt-3">Guardar cambios</button>
+        </form>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="mb-0">Asistencia</h5>
+            <span id="resumenAsistencia" class="badge bg-secondary"></span>
+        </div>
+        <div id="listaAlumnos"></div>
+
+        {% if puede_gestionar_clases %}
+        <hr>
+
+        <div class="row g-2">
+            <div class="col-md-8">
+                <select id="cancelarMotivoRapido" class="form-control">
+                    {% for motivo in motivos_cancelacion %}
+                    <option value="{{ motivo }}">{% if motivo %}{{ motivo|capitalize }}{% else %}Motivo de cancelación{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="button" onclick="cancelarClase()" class="btn btn-warning w-100">
+                    Cancelar clase
+                </button>
+            </div>
+        </div>
+
+        <button type="button" onclick="eliminarClase()" class="btn btn-outline-danger w-100 mt-2">
+            Borrar carga errónea
+        </button>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script type="application/json" id="eventosJson">{{ eventos_json | safe }}</script>
+<script type="application/json" id="estadosAsistenciaJson">{{ estados_asistencia | tojson }}</script>
+<script type="application/json" id="permisosClasesJson">{{ {"puedeGestionarClases": puede_gestionar_clases} | tojson }}</script>
+
+<style>
+.summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+
+.summary-item {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+    padding: 12px 14px;
+}
+
+.summary-item span {
+    color: var(--app-muted);
+    display: block;
+    font-size: 13px;
+}
+
+.summary-item strong {
+    color: var(--app-text);
+    display: block;
+    font-size: 24px;
+    line-height: 1.1;
+    margin-top: 4px;
+}
+
+.toolbar-card,
+.calendar-panel,
+.side-panel,
+.mini-recovery-card,
+.mini-recovery-list {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    color: var(--app-text);
+}
+
+.mini-recovery-card {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+    padding: 12px 14px;
+}
+
+.mini-recovery-card span,
+.mini-recovery-card small,
+.mini-recovery-item span,
+.mini-recovery-item small {
+    color: var(--app-muted);
+}
+
+.mini-recovery-card span,
+.mini-recovery-card small {
+    display: block;
+}
+
+.mini-recovery-card strong {
+    color: var(--app-text);
+    display: block;
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.mini-recovery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.mini-recovery-list {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+}
+
+.mini-recovery-item {
+    align-items: center;
+    background: color-mix(in srgb, var(--app-card) 88%, var(--app-bg));
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(150px, 0.8fr) auto;
+    padding: 9px 10px;
+}
+
+.mini-recovery-item strong,
+.mini-recovery-item span {
+    display: block;
+}
+
+.toolbar-card {
+    padding: 14px;
+}
+
+.toolbar-card h5 {
+    font-size: 16px;
+}
+
+.toolbar-card small {
+    color: var(--app-muted);
+}
+
+.toolbar-main {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+.classes-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.calendar-panel {
+    padding: 14px;
+}
+
+.agenda-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.side-panel {
+    overflow: hidden;
+}
+
+.side-panel {
+    width: 100%;
+}
+
+.compact-tabs {
+    background: color-mix(in srgb, var(--app-card) 84%, var(--app-bg));
+    border-color: var(--app-border);
+    padding: 8px 8px 0;
+}
+
+.compact-tabs .nav-link {
+    border-color: transparent;
+    color: var(--app-muted);
+    font-size: 14px;
+    padding: 8px 10px;
+}
+
+.compact-tabs .nav-link:hover {
+    border-color: var(--app-border);
+    color: var(--app-text);
+}
+
+.compact-tabs .nav-link.active {
+    background: var(--app-card);
+    border-color: var(--app-border) var(--app-border) var(--app-card);
+    color: var(--app-text);
+    font-weight: 600;
+}
+
+.side-content {
+    padding: 14px;
+}
+
+.fc-event {
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(17, 24, 39, 0.18);
+}
+
+.fc .fc-toolbar-title {
+    color: var(--app-text);
+    font-size: 20px;
+}
+
+.fc .fc-col-header-cell,
+.fc .fc-timegrid-axis,
+.fc .fc-timegrid-slot-label,
+.fc .fc-daygrid-day-number {
+    background: var(--app-card);
+    color: var(--app-text);
+}
+
+.fc .fc-scrollgrid,
+.fc .fc-timegrid-slot,
+.fc .fc-daygrid-day,
+.fc .fc-list,
+.fc-theme-standard .fc-list-day-cushion {
+    background: var(--app-card);
+    border-color: var(--app-border);
+}
+
+.fc .fc-timegrid-col.fc-day-today,
+.fc .fc-daygrid-day.fc-day-today {
+    background: color-mix(in srgb, var(--app-primary) 14%, var(--app-card));
+}
+
+.fc .fc-timegrid-now-indicator-line {
+    border-color: var(--app-danger);
+}
+
+.fc .fc-button-primary:disabled {
+    background: color-mix(in srgb, var(--app-primary) 70%, var(--app-card));
+    border-color: color-mix(in srgb, var(--app-primary) 70%, var(--app-card));
+}
+
+.fc .fc-button-primary:not(:disabled):hover,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+    background: color-mix(in srgb, var(--app-primary) 82%, #000000);
+    border-color: color-mix(in srgb, var(--app-primary) 82%, #000000);
+}
+
+.fc-event-title {
+    white-space: normal;
+}
+
+.fc-daygrid-event {
+    padding: 3px 4px;
+}
+
+.fc-timegrid-event {
+    padding: 4px;
+}
+
+.evento-clase {
+    color: #ffffff;
+    line-height: 1.25;
+    overflow: hidden;
+    text-shadow: 0 1px 1px rgba(17, 24, 39, 0.25);
+}
+
+.evento-clase strong {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.evento-clase small {
+    display: block;
+    font-size: 11px;
+    opacity: 0.96;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agenda-item {
+    border-bottom: 1px solid var(--app-border);
+    color: var(--app-text);
+    padding: 10px 0;
+}
+
+.agenda-item small {
+    color: var(--app-muted);
+}
+
+.agenda-item:last-child {
+    border-bottom: none;
+}
+
+.asistencia-row {
+    align-items: center;
+    background: color-mix(in srgb, var(--app-card) 92%, var(--app-bg));
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    color: var(--app-text);
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    margin-bottom: 8px;
+    padding: 10px 12px;
+}
+
+.asistencia-nombre {
+    color: var(--app-text);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asistencia-select {
+    height: 38px;
+    min-width: 0;
+    padding: 6px 10px !important;
+}
+
+.estado-programada {
+    background: #0f766e !important;
+    border-color: #0b5f59 !important;
+}
+
+.estado-realizada {
+    background: #166534 !important;
+    border-color: #14532d !important;
+}
+
+.estado-cancelada {
+    background: #4b5563 !important;
+    border-color: #374151 !important;
+    text-decoration: line-through;
+}
+
+.estado-cancelada .evento-clase {
+    opacity: 0.88;
+}
+
+.estado-recupero {
+    background: #7c3aed !important;
+    border-color: #6d28d9 !important;
+}
+
+.estado-recupero-vencido {
+    background: #b91c1c !important;
+    border-color: #991b1b !important;
+}
+
+@media (max-width: 1100px) {
+    .filters-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .summary-strip,
+    .filters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar-main {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .agenda-toggle-row {
+        justify-content: stretch;
+    }
+
+    .agenda-toggle-row .btn {
+        width: 100%;
+    }
+
+    .mini-recovery-card,
+    .mini-recovery-item {
+        align-items: stretch;
+        grid-template-columns: 1fr;
+    }
+
+    .mini-recovery-card {
+        flex-direction: column;
+    }
+
+    .mini-recovery-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+
+    .asistencia-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+let claseActual = null;
+let mapa = {};
+let calendar = null;
+const eventosOriginales = JSON.parse(document.getElementById("eventosJson").textContent);
+const estadosAsistencia = JSON.parse(document.getElementById("estadosAsistenciaJson").textContent);
+const permisosClases = JSON.parse(document.getElementById("permisosClasesJson").textContent);
+const puedeGestionarClases = permisosClases.puedeGestionarClases;
+
+function formatearFechaInput(fecha) {
+    return fechaParaServidor(fecha);
+}
+
+function idsAlumnos(alumnos) {
+    return alumnos.map(a => String(a.id));
+}
+
+function seleccionarAlumnos(selectId, alumnos) {
+    let ids = idsAlumnos(alumnos);
+    document.querySelectorAll(`#${selectId} option`).forEach(option => {
+        option.selected = ids.includes(option.value);
+    });
+}
+
+function asistenciaTexto(valor) {
+    const textos = {
+        pendiente: "Pendiente",
+        presente: "Presente",
+        ausente: "Ausente",
+        aviso: "Aviso",
+        recupera: "Recupera"
+    };
+    return textos[valor] || "Pendiente";
+}
+
+function claseEstadoCss(estado) {
+    return [`estado-${estado || "programada"}`];
+}
+
+function claseCss(e) {
+    let clases = claseEstadoCss(e.estado);
+    if (e.es_recupero) clases.push("estado-recupero");
+    if (e.recupero_estado === "vencido") clases.push("estado-recupero-vencido");
+    return clases;
+}
+
+function abrirCrearAhora() {
+    if (!puedeGestionarClases) {
+        return;
+    }
+    document.getElementById("crearFecha").value = formatearFechaInput(new Date());
+    new bootstrap.Modal(document.getElementById("modalCrear")).show();
+}
+
+function pasaFiltros(e) {
+    let profesor = document.getElementById("filtroProfesor").value;
+    let alumno = document.getElementById("filtroAlumno").value;
+    let estado = document.getElementById("filtroEstado").value;
+    let alumnos = document.getElementById("filtroAlumnos").value;
+    let periodo = document.getElementById("filtroPeriodo").value;
+
+    if (profesor && String(e.profesor_id) !== profesor) return false;
+    if (alumno && !e.alumnos.some(a => String(a.id) === alumno)) return false;
+    if (estado && e.estado !== estado) return false;
+    if (alumnos === "con" && e.cantidad_alumnos === 0) return false;
+    if (alumnos === "sin" && e.cantidad_alumnos > 0) return false;
+    if (periodo && !pasaPeriodo(e.start, periodo)) return false;
+
+    return true;
+}
+
+function pasaPeriodo(fechaTexto, periodo) {
+    let fecha = new Date(fechaTexto);
+    let hoy = new Date();
+    let inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    let fin = new Date(inicio);
+
+    if (periodo === "hoy") {
+        fin.setDate(inicio.getDate() + 1);
+    } else if (periodo === "semana") {
+        let dia = inicio.getDay() || 7;
+        inicio.setDate(inicio.getDate() - dia + 1);
+        fin = new Date(inicio);
+        fin.setDate(inicio.getDate() + 7);
+    } else if (periodo === "mes") {
+        inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+    }
+
+    return fecha >= inicio && fecha < fin;
+}
+
+function eventosFiltrados() {
+    return eventosOriginales.filter(pasaFiltros).map(e => ({
+        ...e,
+        classNames: claseCss(e)
+    }));
+}
+
+function refrescarVistas() {
+    calendar.removeAllEvents();
+    calendar.addEventSource(eventosFiltrados());
+    renderAgenda();
+}
+
+function renderAgenda() {
+    let contenedor = document.getElementById("agendaLista");
+    let ahora = new Date();
+    let proximas = eventosFiltrados()
+        .filter(e => new Date(e.start) >= ahora)
+        .sort((a, b) => new Date(a.start) - new Date(b.start))
+        .slice(0, 8);
+
+    if (proximas.length === 0) {
+        contenedor.innerHTML = "<p class='mb-0'>No hay clases para mostrar.</p>";
+        return;
+    }
+
+    contenedor.innerHTML = proximas.map(e => {
+        let fecha = new Date(e.start);
+        let fechaTxt = fecha.toLocaleDateString("es-AR", {weekday: "short", day: "2-digit", month: "2-digit"});
+        let horaTxt = fecha.toLocaleTimeString("es-AR", {hour: "2-digit", minute: "2-digit"});
+        return `
+            <div class="agenda-item">
+                <strong>${fechaTxt} ${horaTxt}</strong>
+                <div>${e.profesor}</div>
+                <small>${e.cantidad_alumnos} alumnos - ${e.estado}</small>
+            </div>`;
+    }).join("");
+}
+
+function renderResumenDia() {
+    let hoy = new Date();
+    let inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    let fin = new Date(inicio);
+    fin.setDate(inicio.getDate() + 1);
+
+    let clasesHoy = eventosOriginales.filter(e => {
+        let fecha = new Date(e.start);
+        return fecha >= inicio && fecha < fin;
+    });
+
+    let presentes = clasesHoy.reduce((total, e) => {
+        return total + e.alumnos.filter(a => a.asistencia === "presente").length;
+    }, 0);
+
+    let canceladas = clasesHoy.filter(e => e.estado === "cancelada").length;
+    let profesores = new Set(clasesHoy.map(e => e.profesor_id));
+
+    document.getElementById("resumenClasesHoy").textContent = clasesHoy.length;
+    document.getElementById("resumenPresentesHoy").textContent = presentes;
+    document.getElementById("resumenCanceladasHoy").textContent = canceladas;
+    document.getElementById("resumenProfesoresHoy").textContent = profesores.size;
+}
+
+function renderLista(e){
+    let html = "";
+
+    if (e.alumnos.length === 0) {
+        html = "<p>Sin alumnos asignados.</p>";
+    } else {
+        e.alumnos.forEach(a => {
+            html += `
+            <div class="asistencia-row">
+                <div class="asistencia-nombre">${a.nombre}</div>
+                <select class="form-control asistencia-select" onchange="cambiarAsistencia(${e.id}, ${a.id}, this.value)">
+                    ${estadosAsistencia.map(estado => `
+                        <option value="${estado}" ${estado === a.asistencia ? "selected" : ""}>${asistenciaTexto(estado)}</option>
+                    `).join("")}
+                </select>
+            </div>`;
+        });
+    }
+
+    document.getElementById("listaAlumnos").innerHTML = html;
+    renderResumenAsistencia(e);
+}
+
+function renderResumenAsistencia(e) {
+    let presentes = e.alumnos.filter(a => a.asistencia === "presente").length;
+    let total = e.alumnos.length;
+    document.getElementById("resumenAsistencia").textContent = `${presentes}/${total} presentes`;
+}
+
+function completarGestion(e) {
+    claseActual = e.id;
+    document.getElementById("tituloGestion").textContent = e.title;
+
+    if (puedeGestionarClases) {
+        document.getElementById("editarClaseId").value = e.id;
+        document.getElementById("editarProfesor").value = e.profesor_id;
+        document.getElementById("editarFecha").value = e.start;
+        document.getElementById("editarDuracion").value = e.duracion;
+        document.getElementById("editarTipoClase").value = e.tipo_clase_id || 1;
+        document.getElementById("editarEstado").value = e.estado;
+        document.getElementById("editarMotivoCancelacion").value = e.motivo_cancelacion || "";
+        document.getElementById("editarRecuperacionDe").value = e.recuperacion_de || "";
+        seleccionarAlumnos("editarAlumnos", e.alumnos);
+    }
+
+    renderLista(e);
+}
+
+function cambiarAsistencia(clase, alumno, estado){
+    fetch("/cambiar_asistencia",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({clase, alumno, estado})
+    })
+    .then(r=>r.json())
+    .then(data=>{
+        if (!data.ok) return;
+
+        let evento = eventosOriginales.find(e => Number(e.id) === Number(clase));
+        let alumnoObj = evento.alumnos.find(a => Number(a.id) === Number(alumno));
+        alumnoObj.asistencia = data.estado;
+        renderResumenAsistencia(evento);
+    });
+}
+
+function eliminarClase(){
+    if (!confirm("Esto borra la clase definitivamente. Usalo solo si fue una carga errónea. Seguro?")) {
+        return;
+    }
+
+    fetch("/eliminar_clase",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({clase:claseActual})
+    })
+    .then(()=>location.reload());
+}
+
+function cancelarClase(){
+    let motivo = document.getElementById("cancelarMotivoRapido").value;
+
+    if (!confirm("La clase quedara cancelada pero seguira en el historial. Confirmas?")) {
+        return;
+    }
+
+    fetch("/cancelar_clase",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({clase:claseActual, motivo})
+    })
+    .then(()=>location.reload());
+}
+
+function fechaParaServidor(fecha) {
+    let local = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    eventosOriginales.forEach(e => mapa[e.id] = e);
+
+    document.querySelectorAll(".filtro").forEach(el => {
+        el.addEventListener("change", refrescarVistas);
+    });
+
+    calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+        locale: "es",
+        buttonText: {
+            today: "Hoy",
+            month: "Mes",
+            week: "Semana",
+        day: "Día"
+        },
+        allDayText: "Todo el día",
+        noEventsText: "No hay clases",
+        initialView: "dayGridMonth",
+        editable: puedeGestionarClases,
+        eventDurationEditable: false,
+
+        headerToolbar: {
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay"
+        },
+
+        events: eventosFiltrados(),
+
+        eventContent: function(arg) {
+            let props = arg.event.extendedProps;
+            let hora = arg.event.start ? arg.event.start.toLocaleTimeString("es-AR", {hour: "2-digit", minute: "2-digit"}) : "";
+            return {
+                html: `
+                <div class="evento-clase">
+                    <strong>${props.profesor}</strong>
+                    <small>${hora}</small>
+                <small>${props.cantidad_alumnos} alumnos - ${props.es_recupero ? "recupero" : props.tipo_clase} - ${props.estado}</small>
+                </div>`
+            };
+        },
+
+        dateClick: function(info) {
+            if (!puedeGestionarClases) {
+                return;
+            }
+            let fecha = info.dateStr.includes("T") ? info.dateStr.slice(0, 16) : info.dateStr + "T09:00";
+            document.getElementById("crearFecha").value = fecha;
+            new bootstrap.Modal(document.getElementById("modalCrear")).show();
+        },
+
+        eventClick: function(info) {
+            let e = mapa[info.event.id];
+            completarGestion(e);
+            new bootstrap.Modal(document.getElementById("modalGestion")).show();
+        },
+
+        eventDrop: function(info) {
+            fetch("/mover_clase",{
+                method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({
+                    clase: info.event.id,
+                    fecha: fechaParaServidor(info.event.start)
+                })
+            })
+            .then(async r => {
+                let data = await r.json();
+                if (!r.ok || !data.ok) {
+                    alert(data.error || "No se pudo mover la clase.");
+                    info.revert();
+                    return;
+                }
+                location.reload();
+            });
+        }
+    });
+
+    calendar.render();
+    renderAgenda();
+    renderResumenDia();
+});
+</script>
+
+{% endblock %}

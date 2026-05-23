@@ -1,0 +1,39 @@
+{% if matriculas %}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th>Año</th>
+                <th>Normal</th>
+                <th>Descuento</th>
+                <th>A pagar</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matriculas %}
+            <tr>
+                <td>{{ m.apellido_nombre }}</td>
+                <td>{{ m.anio }}</td>
+                <td>${{ "%.2f"|format(m.monto_normal) }}</td>
+                <td>${{ "%.2f"|format(m.descuento) }}</td>
+                <td>${{ "%.2f"|format(m.monto_pagado) }}</td>
+                <td>{{ m.estado|capitalize }}</td>
+                <td class="text-end">
+                    {% if m.estado != "pagado" %}
+                    <button class="btn btn-success btn-sm" onclick="marcarPago({{ m.id }}, 'matricula', 'pagado')">Marcar pagado</button>
+                    {% else %}
+                    <span class="text-muted small">{{ m.fecha_pago }}</span>
+                    <button class="btn btn-outline-secondary btn-sm ms-2" onclick="marcarPago({{ m.id }}, 'matricula', 'pendiente')">Volver pendiente</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted mb-0">No hay matrículas registradas.</p>
+{% endif %}

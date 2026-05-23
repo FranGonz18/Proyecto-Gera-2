@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">Estadisticas y analytics</h3>
+        <p class="text-muted mb-0">Centro de analisis financiero, academico y operativo.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-success" href="/estadisticas/exportar_csv?desde={{ filtros.desde }}&hasta={{ filtros.hasta }}&profesor_id={{ filtros.profesor_id or '' }}&alumno_id={{ filtros.alumno_id or '' }}&tipo_clase_id={{ filtros.tipo_clase_id or '' }}&metodo_pago={{ filtros.metodo_pago }}">Exportar CSV</a>
+        <a class="btn btn-outline-primary" target="_blank" href="/estadisticas/reporte?desde={{ filtros.desde }}&hasta={{ filtros.hasta }}&profesor_id={{ filtros.profesor_id or '' }}&alumno_id={{ filtros.alumno_id or '' }}&tipo_clase_id={{ filtros.tipo_clase_id or '' }}&metodo_pago={{ filtros.metodo_pago }}">PDF / imprimir</a>
+    </div>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label>Desde</label>
+            <input type="date" name="desde" class="form-control" value="{{ filtros.desde }}">
+        </div>
+        <div class="col-md-2">
+            <label>Hasta</label>
+            <input type="date" name="hasta" class="form-control" value="{{ filtros.hasta }}">
+        </div>
+        <div class="col-md-2">
+            <label>Profesor</label>
+            <select name="profesor_id" class="form-control">
+                <option value="">Todos</option>
+                {% for p in profesores %}
+                <option value="{{ p.id }}" {% if filtros.profesor_id == p.id %}selected{% endif %}>{{ p.nombre_apellido }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Alumno</label>
+            <select name="alumno_id" class="form-control">
+                <option value="">Todos</option>
+                {% for a in alumnos %}
+                <option value="{{ a.id }}" {% if filtros.alumno_id == a.id %}selected{% endif %}>{{ a.apellido_nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Tipo clase</label>
+            <select name="tipo_clase_id" class="form-control">
+                <option value="">Todos</option>
+                {% for t in tipos_clase %}
+                <option value="{{ t.id }}" {% if filtros.tipo_clase_id == t.id %}selected{% endif %}>{{ t.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Analizar</button>
+        </div>
+    </form>
+</div>
+
+<div class="analytics-grid mb-3">
+    <div class="metric-card"><span>Ingresos periodo</span><strong>${{ "%.2f"|format(datos.kpis.ingresos) }}</strong><small class="{{ 'trend-up' if datos.comparativa.variacion_ingresos >= 0 else 'trend-down' }}">{{ "%.1f"|format(datos.comparativa.variacion_ingresos) }}% vs periodo anterior</small></div>
+    <div class="metric-card"><span>Ganancia neta</span><strong>${{ "%.2f"|format(datos.kpis.ganancias_netas) }}</strong><small>Bruta ${{ "%.2f"|format(datos.kpis.ganancias_brutas) }}</small></div>
+    <div class="metric-card"><span>MRR</span><strong>${{ "%.2f"|format(datos.kpis.mrr) }}</strong><small>Ingreso mensual recurrente</small></div>
+    <div class="metric-card"><span>Ticket promedio</span><strong>${{ "%.2f"|format(datos.kpis.ticket_promedio) }}</strong><small>Por alumno activo</small></div>
+    <div class="metric-card"><span>Deuda total</span><strong>${{ "%.2f"|format(datos.kpis.deuda_total) }}</strong><small>Mora {{ "%.1f"|format(datos.kpis.morosidad) }}%</small></div>
+    <div class="metric-card"><span>Saldo a favor</span><strong>${{ "%.2f"|format(datos.kpis.saldo_favor) }}</strong><small>Credito de alumnos</small></div>
+    <div class="metric-card"><span>Asistencia</span><strong>{{ "%.1f"|format(datos.kpis.tasa_asistencia) }}%</strong><small>{{ datos.kpis.clases }} clases analizadas</small></div>
+    <div class="metric-card"><span>Descuentos</span><strong>${{ "%.2f"|format(datos.kpis.descuentos) }}</strong><small>Promos y bonificaciones</small></div>
+    <div class="metric-card"><span>Ajustes manuales</span><strong>${{ "%.2f"|format(datos.kpis.ajustes_manuales) }}</strong><small>Cargos ${{ "%.2f"|format(datos.kpis.ajustes_cargos) }} / creditos ${{ "%.2f"|format(datos.kpis.ajustes_creditos) }}</small></div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-8">
+        <div class="card p-3 h-100">
+            <h5>Ingresos y deuda mensual</h5>
+            <canvas id="graficoIngresos" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h5>Ingresos por metodo</h5>
+            <canvas id="graficoMetodo" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h5>Clases por tipo</h5>
+            <canvas id="graficoTipos" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h5>Horarios mas usados</h5>
+            <canvas id="graficoHoras" height="220"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h5>Alertas inteligentes</h5>
+            {% for alerta in datos.alertas %}
+            <div class="analytics-alert {{ alerta.tipo }}">
+                <strong>{{ alerta.titulo }}</strong>
+                <span>{{ alerta.detalle }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card p-3 h-100">
+            <h5>Rendimiento de profesores</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Profesor</th><th>Clases</th><th>Alumnos</th><th>Cancel.</th><th>Recup.</th><th>Asist.</th></tr></thead>
+                    <tbody>
+                        {% for p in datos.profesores %}
+                        <tr>
+                            <td>{{ p.nombre_apellido }}</td>
+                            <td>{{ p.clases }}</td>
+                            <td>{{ p.alumnos }}</td>
+                            <td>{{ p.canceladas }}</td>
+                            <td>{{ p.recuperos }}</td>
+                            <td>{{ "%.1f"|format((p.presentes or 0) / (p.asistencias or 1) * 100) }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3 h-100">
+            <h5>Promociones y recuperos</h5>
+            <div class="row g-2 mb-3">
+                <div class="col"><div class="mini-stat"><span>Promos activas</span><strong>{{ datos.promos_estado.activas }}</strong></div></div>
+                <div class="col"><div class="mini-stat"><span>Promos vencidas</span><strong>{{ datos.promos_estado.vencidas }}</strong></div></div>
+                <div class="col"><div class="mini-stat"><span>Recup. pendientes</span><strong>{{ datos.recuperos.pendientes }}</strong></div></div>
+                <div class="col"><div class="mini-stat"><span>Recup. pagos</span><strong>{{ datos.recuperos.pagos }}</strong></div></div>
+                <div class="col"><div class="mini-stat"><span>Reglas comision</span><strong>{{ datos.comisiones.activas }}</strong></div></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Promocion</th><th>Usos</th><th>Impacto</th></tr></thead>
+                    <tbody>
+                        {% for promo in datos.promociones %}
+                        <tr><td>{{ promo.nombre or "Promocion" }}</td><td>{{ promo.usos }}</td><td>${{ "%.2f"|format(promo.impacto or 0) }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-muted">Sin promociones aplicadas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-1 mb-3">
+    <div class="col-lg-6">
+        <div class="card p-3 h-100">
+            <h5>Ajustes por categoria</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Categoria</th><th>Impacto</th><th>Cantidad</th></tr></thead>
+                    <tbody>
+                        {% for ajuste in datos.ajustes %}
+                        <tr>
+                            <td>{{ ajuste.categoria|capitalize }} <span class="badge bg-secondary">{{ ajuste.signo }}</span></td>
+                            <td>${{ "%.2f"|format(ajuste.total or 0) }}</td>
+                            <td>{{ ajuste.cantidad }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-muted">Sin ajustes en el periodo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3 h-100">
+            <h5>Ajustes por usuario</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Usuario</th><th>Impacto neto</th><th>Cantidad</th></tr></thead>
+                    <tbody>
+                        {% for ajuste in datos.ajustes_por_usuario %}
+                        <tr><td>{{ ajuste.usuario }}</td><td>${{ "%.2f"|format(ajuste.impacto or 0) }}</td><td>{{ ajuste.cantidad }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-muted">Sin ajustes registrados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const analytics = {{ datos|tojson }};
+const css = getComputedStyle(document.documentElement);
+const primary = css.getPropertyValue("--app-primary").trim() || "#10aaa5";
+const success = css.getPropertyValue("--app-success").trim() || "#22c55e";
+const danger = css.getPropertyValue("--app-danger").trim() || "#ef4444";
+const textColor = css.getPropertyValue("--app-text").trim() || "#263238";
+const gridColor = css.getPropertyValue("--app-border").trim() || "#d8eeee";
+
+function chartOptions() {
+    return {
+        responsive: true,
+        plugins: { legend: { labels: { color: textColor } } },
+        scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor }, grid: { color: gridColor } }
+        }
+    };
+}
+
+const meses = [...new Set([...analytics.series.ingresos_mes.map(x => x.periodo), ...analytics.series.deuda_mes.map(x => x.periodo)])].sort();
+new Chart(document.getElementById("graficoIngresos"), {
+    type: "line",
+    data: {
+        labels: meses,
+        datasets: [
+            { label: "Ingresos", data: meses.map(m => (analytics.series.ingresos_mes.find(x => x.periodo === m) || {}).total || 0), borderColor: primary, backgroundColor: primary + "33", tension: .35, fill: true },
+            { label: "Deuda", data: meses.map(m => (analytics.series.deuda_mes.find(x => x.periodo === m) || {}).total || 0), borderColor: danger, backgroundColor: danger + "22", tension: .35 }
+        ]
+    },
+    options: chartOptions()
+});
+
+new Chart(document.getElementById("graficoMetodo"), {
+    type: "doughnut",
+    data: { labels: analytics.series.ingresos_metodo.map(x => x.metodo), datasets: [{ data: analytics.series.ingresos_metodo.map(x => x.total), backgroundColor: [primary, success, "#f59e0b", danger, "#7c3aed"] }] },
+    options: { responsive: true, plugins: { legend: { labels: { color: textColor } } } }
+});
+
+new Chart(document.getElementById("graficoTipos"), {
+    type: "bar",
+    data: { labels: analytics.series.clases_tipo.map(x => x.tipo || "Sin tipo"), datasets: [{ label: "Clases", data: analytics.series.clases_tipo.map(x => x.total), backgroundColor: primary }] },
+    options: chartOptions()
+});
+
+new Chart(document.getElementById("graficoHoras"), {
+    type: "bar",
+    data: { labels: analytics.series.actividad_hora.map(x => `${x.hora}:00`), datasets: [{ label: "Clases", data: analytics.series.actividad_hora.map(x => x.total), backgroundColor: success }] },
+    options: chartOptions()
+});
+</script>
+
+<style>
+.analytics-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.metric-card,
+.mini-stat {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    padding: 14px;
+}
+.metric-card span,
+.metric-card small,
+.mini-stat span {
+    color: var(--app-muted);
+    display: block;
+}
+.metric-card strong {
+    display: block;
+    font-size: 25px;
+    line-height: 1.1;
+    margin: 6px 0;
+}
+.mini-stat strong {
+    display: block;
+    font-size: 22px;
+}
+.trend-up { color: var(--app-success) !important; }
+.trend-down { color: var(--app-danger) !important; }
+.analytics-alert {
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+}
+.analytics-alert strong,
+.analytics-alert span {
+    display: block;
+}
+.analytics-alert.danger { border-color: var(--app-danger); }
+.analytics-alert.warning { border-color: #f59e0b; }
+.analytics-alert.success { border-color: var(--app-success); }
+</style>
+
+{% endblock %}

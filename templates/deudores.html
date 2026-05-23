@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">Deudores</h3>
+    <a href="/pagos" class="btn btn-primary">Volver a pagos</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card p-3 h-100">
+            <h5 class="mb-3">Alumnos con saldo deudor</h5>
+            {% if deudores_lista %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Alumno</th>
+                            <th>Saldo</th>
+                            <th>Desde</th>
+                            <th>Ultimo pago</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in deudores_lista %}
+                        <tr>
+                            <td><a href="/alumnos/{{ d.alumno_id }}">{{ d.apellido_nombre }}</a></td>
+                            <td><strong>${{ "%.2f"|format(d.saldo or 0) }}</strong></td>
+                            <td>{{ d.deuda_desde or "-" }}</td>
+                            <td>{{ d.ultimo_pago or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No hay alumnos con saldo deudor.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card p-3 h-100">
+            <h5 class="mb-3">Conceptos pendientes</h5>
+            {% if conceptos_pendientes %}
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Alumno</th>
+                            <th>Concepto</th>
+                            <th>Debe</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in conceptos_pendientes %}
+                        <tr>
+                            <td>{{ c.fecha }}</td>
+                            <td>{{ c.apellido_nombre }}</td>
+                            <td>{{ c.concepto }}</td>
+                            <td>${{ "%.2f"|format(c.debe or 0) }}</td>
+                            <td><span class="badge bg-danger">{{ c.estado|capitalize }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No hay conceptos pendientes.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

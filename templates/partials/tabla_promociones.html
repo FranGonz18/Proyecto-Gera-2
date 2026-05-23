@@ -1,0 +1,32 @@
+{% if promociones %}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th>Promocion</th>
+                <th>Tipo</th>
+                <th>%</th>
+                <th>Monto</th>
+                <th>Usos</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in promociones %}
+            <tr>
+                <td>{{ p.apellido_nombre or "General" }}</td>
+                <td>{{ p.nombre or p.descripcion }}</td>
+                <td>{{ p.tipo }}</td>
+                <td>{{ p.porcentaje_descuento }}%</td>
+                <td>${{ "%.2f"|format(p.monto_descuento) }}</td>
+                <td>{{ p.usos_actuales or 0 }}{% if p.limite_usos %}/{{ p.limite_usos }}{% endif %}</td>
+                <td>{% if p.automatica %}Automatica{% else %}Manual{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="text-muted mb-0">No hay promociones activas.</p>
+{% endif %}

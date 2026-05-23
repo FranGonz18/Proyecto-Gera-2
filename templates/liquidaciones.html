@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="mb-1">Liquidaciones</h3>
+        <p class="text-muted mb-0">Resumen simple de lo generado y lo que corresponde pagar a cada profesor.</p>
+    </div>
+    <a href="/exportar_liquidaciones?anio={{ filtros.anio }}&mes={{ filtros.mes }}&profesor_id={{ filtros.profesor_id or '' }}&tipo_clase={{ filtros.tipo_clase }}" class="btn btn-success">
+        Exportar CSV
+    </a>
+</div>
+
+{% if request.args.get("mensaje") %}
+<div class="alert alert-{{ request.args.get('tipo', 'success') }} alert-dismissible fade show" role="alert">
+    {{ request.args.get("mensaje") }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="card p-3 mb-3">
+    <form method="GET" action="/liquidaciones" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label>Anio</label>
+            <input type="number" name="anio" class="form-control" value="{{ filtros.anio }}" required>
+        </div>
+        <div class="col-md-2">
+            <label>Mes</label>
+            <select name="mes" class="form-control">
+                {% for mes in range(1, 13) %}
+                <option value="{{ mes }}" {% if filtros.mes == mes %}selected{% endif %}>{{ mes }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Profesor</label>
+            <select name="profesor_id" class="form-control">
+                <option value="">Todos</option>
+                {% for p in profesores %}
+                <option value="{{ p.id }}" {% if filtros.profesor_id == p.id %}selected{% endif %}>{{ p.nombre_apellido }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Tipo de clase</label>
+            <select name="tipo_clase" class="form-control">
+                <option value="">Todos</option>
+                {% for tipo in tipos_clase %}
+                <option value="{{ tipo.nombre }}" {% if filtros.tipo_clase == tipo.nombre %}selected{% endif %}>{{ tipo.nombre|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
+</div>
+
+<div class="liquidation-kpis mb-3">
+    <div class="card p-3">
+        <span>Clases</span>
+        <strong>{{ totales.clases }}</strong>
+    </div>
+    <div class="card p-3">
+        <span>Total generado</span>
+        <strong>${{ "%.2f"|format(totales.ingreso_real) }}</strong>
+    </div>
+    <div class="card p-3">
+        <span>A pagar</span>
+        <strong>${{ "%.2f"|format(totales.pago_profesor) }}</strong>
+    </div>
+    <div class="card p-3">
+        <span>Academia</span>
+        <strong>${{ "%.2f"|format(totales.ganancia_academia) }}</strong>
+    </div>
+</div>
+
+{% if liquidaciones %}
+<div class="liquidation-list">
+{% for item in liquidaciones %}
+    <div class="card p-3 liquidation-card">
+        <div class="liquidation-head">
+            <div>
+                <h5 class="mb-1">{{ item.profesor.nombre_apellido }}</h5>
+                <div class="text-muted small">
+                    {{ filtros.mes }}/{{ filtros.anio }} &middot;
+                    <span class="badge bg-secondary">{{ item.liquidacion.estado }}</span>
+                    {% if item.liquidacion.fecha_pago %} &middot; Pagada el {{ item.liquidacion.fecha_pago }}{% endif %}
+                </div>
+                {% if item.profesor.observaciones_liquidacion %}
+                <div class="text-muted small mt-1">{{ item.profesor.observaciones_liquidacion }}</div>
+                {% endif %}
+            </div>
+            <div class="liquidation-total">
+                <span>Total profesor</span>
+                <strong>${{ "%.2f"|format(item.totales.pago_profesor_final) }}</strong>
+            </div>
+        </div>
+
+        <div class="simple-liquidation-summary">
+            <div><span>Clases dadas</span><strong>{{ item.clases|length }}</strong></div>
+            <div><span>Presentes</span><strong>{{ item.totales.presentes }}</strong></div>
+            <div><span>Pagaron</span><strong>{{ item.totales.pagaron }}</strong></div>
+            <div><span>Deben</span><strong>{{ item.totales.deben }}</strong></div>
+            <div><span>Generado</span><strong>${{ "%.2f"|format(item.totales.ingreso_real) }}</strong></div>
+            <div><span>Ajustes</span><strong>${{ "%.2f"|format(item.totales.ajustes) }}</strong></div>
+        </div>
+
+        <div class="liquidation-actions">
+            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#detalleLiq{{ loop.index }}">
+                Ver detalle
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#estadoLiq{{ loop.index }}">
+                Estado y pago
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#ajustesLiq{{ loop.index }}">
+                Ajustes
+            </button>
+        </div>
+
+        <div class="collapse mt-3" id="detalleLiq{{ loop.index }}">
+            <div class="table-responsive compact-detail">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Asistencia</th>
+                            <th>Cobrado</th>
+                            <th>Profesor</th>
+                            <th>Academia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for clase in item.clases %}
+                        <tr>
+                            <td>{{ clase.fecha }}</td>
+                            <td>
+                                {{ clase.tipo_clase|capitalize }}
+                                <div class="text-muted small">{{ clase.estado|capitalize }}</div>
+                            </td>
+                            <td>
+                                {{ clase.presentes }} presentes
+                                <div class="text-muted small">{{ clase.deben }} deben</div>
+                            </td>
+                            <td>${{ "%.2f"|format(clase.ingreso_real) }}</td>
+                            <td>
+                                ${{ "%.2f"|format(clase.pago_profesor) }}
+                                <div class="text-muted small">{{ "%.2f"|format(clase.porcentaje) }}% &middot; {{ clase.regla_comision or "Regla base" }}</div>
+                            </td>
+                            <td>${{ "%.2f"|format(clase.ganancia_academia) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="collapse mt-3" id="estadoLiq{{ loop.index }}">
+            <form method="POST" action="/liquidaciones/estado" class="simple-state-form">
+                <input type="hidden" name="liquidacion_id" value="{{ item.liquidacion.id }}">
+                <div>
+                    <label>Estado</label>
+                    <select name="estado" class="form-control">
+                        {% for estado in ["pendiente", "revisada", "pagada", "anulada"] %}
+                        <option value="{{ estado }}" {% if item.liquidacion.estado == estado %}selected{% endif %}>{{ estado|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Metodo</label>
+                    <input name="metodo_pago" class="form-control" value="{{ item.liquidacion.metodo_pago or '' }}" placeholder="Efectivo/transferencia">
+                </div>
+                <div>
+                    <label>Observacion</label>
+                    <input name="observacion" class="form-control" value="{{ item.liquidacion.observacion or '' }}">
+                </div>
+                <div>
+                    {% if item.liquidacion.estado == "pagada" %}
+                    <input type="hidden" name="confirmar_modificacion" value="1">
+                    <button class="btn btn-warning w-100" onclick="return confirm('Esta liquidacion ya esta pagada. Confirmas modificarla?')">Guardar</button>
+                    {% else %}
+                    <button class="btn btn-primary w-100">Guardar</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div class="collapse mt-3" id="ajustesLiq{{ loop.index }}">
+            <div class="adjustments-layout">
+                <div>
+                    <h6>Ajustes cargados</h6>
+                    {% if item.ajustes %}
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Motivo</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ajuste in item.ajustes %}
+                                <tr>
+                                    <td>{{ ajuste.fecha }}</td>
+                                    <td>{{ ajuste.tipo }}</td>
+                                    <td>${{ "%.2f"|format(ajuste.monto) }}</td>
+                                    <td>
+                                        {{ ajuste.motivo }}
+                                        <div class="text-muted small">{{ ajuste.usuario_nombre }}</div>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if ajuste.ajuste_manual_id and usuario_actual and usuario_actual.rol == "admin" %}
+                                        <form method="POST" action="/anular_ajuste_manual" onsubmit="return confirm('Anular este ajuste de liquidacion?')">
+                                            <input type="hidden" name="ajuste_id" value="{{ ajuste.ajuste_manual_id }}">
+                                            <input type="hidden" name="redirect_to" value="/liquidaciones?anio={{ filtros.anio }}&mes={{ filtros.mes }}&profesor_id={{ item.profesor.id }}">
+                                            <input type="hidden" name="motivo_anulacion" value="Anulado desde liquidaciones">
+                                            <button class="btn btn-sm btn-outline-danger">Anular</button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">No hay ajustes cargados.</p>
+                    {% endif %}
+                </div>
+
+                <form method="POST" action="/liquidaciones/ajuste" class="adjustment-form">
+                    <input type="hidden" name="liquidacion_id" value="{{ item.liquidacion.id }}">
+                    {% if item.liquidacion.estado == "pagada" %}
+                    <input type="hidden" name="confirmar_modificacion" value="1">
+                    {% endif %}
+                    <h6>Agregar ajuste</h6>
+                    <label>Tipo</label>
+                    <select name="tipo" class="form-control mb-2">
+                        {% for tipo in tipos_ajuste %}
+                        <option value="{{ tipo }}">{{ tipo.replace("_", " ")|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                    <label>Monto</label>
+                    <input type="number" step="0.01" min="0" name="monto" class="form-control mb-2" required>
+                    <label>Motivo</label>
+                    <textarea name="motivo" class="form-control mb-2" rows="2" required></textarea>
+                    <label>Observacion interna</label>
+                    <textarea name="observacion" class="form-control mb-2" rows="2"></textarea>
+                    {% if item.liquidacion.estado == "pagada" %}
+                    <button class="btn btn-warning w-100" onclick="return confirm('Esta liquidacion ya esta pagada. Confirmas agregar un ajuste?')">Agregar ajuste</button>
+                    {% else %}
+                    <button class="btn btn-primary w-100">Agregar ajuste</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+</div>
+{% else %}
+<div class="card p-4 text-center">
+    <h5>No hay profesores para liquidar</h5>
+    <p class="text-muted mb-0">Carga profesores activos y clases para ver liquidaciones.</p>
+</div>
+{% endif %}
+
+<style>
+.liquidation-kpis,
+.simple-liquidation-summary {
+    display: grid;
+    gap: 10px;
+}
+
+.liquidation-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.liquidation-kpis span,
+.simple-liquidation-summary span,
+.liquidation-total span {
+    color: var(--app-muted);
+    display: block;
+    font-size: 12px;
+}
+
+.liquidation-kpis strong {
+    color: var(--app-text);
+    display: block;
+    font-size: 24px;
+    line-height: 1.1;
+}
+
+.liquidation-list {
+    display: grid;
+    gap: 14px;
+}
+
+.liquidation-head {
+    align-items: flex-start;
+    display: flex;
+    gap: 14px;
+    justify-content: space-between;
+}
+
+.liquidation-total {
+    background: color-mix(in srgb, var(--app-primary) 10%, var(--app-card));
+    border: 1px solid color-mix(in srgb, var(--app-primary) 24%, var(--app-border));
+    border-radius: 10px;
+    min-width: 190px;
+    padding: 10px 12px;
+    text-align: right;
+}
+
+.liquidation-total strong {
+    color: var(--app-text);
+    display: block;
+    font-size: 22px;
+}
+
+.simple-liquidation-summary {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    margin-top: 14px;
+}
+
+.simple-liquidation-summary div {
+    background: color-mix(in srgb, var(--app-card) 88%, var(--app-bg));
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.simple-liquidation-summary strong {
+    color: var(--app-text);
+    display: block;
+    font-size: 17px;
+}
+
+.liquidation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.simple-state-form {
+    align-items: end;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 160px 1fr 1.4fr 150px;
+}
+
+.adjustments-layout {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+}
+
+.adjustment-form {
+    background: color-mix(in srgb, var(--app-card) 88%, var(--app-bg));
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.compact-detail .table {
+    margin-bottom: 0;
+}
+
+@media (max-width: 1100px) {
+    .liquidation-kpis,
+    .simple-liquidation-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .simple-state-form,
+    .adjustments-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .liquidation-kpis,
+    .simple-liquidation-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .liquidation-head {
+        flex-direction: column;
+    }
+
+    .liquidation-total {
+        text-align: left;
+        width: 100%;
+    }
+}
+</style>
+
+{% endblock %}

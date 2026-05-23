@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de estadisticas</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #111827; margin: 28px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 1px solid #d1d5db; padding-bottom: 14px; margin-bottom: 18px; }
+        .muted { color: #6b7280; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+        .box { border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; }
+        .box span { color: #6b7280; display: block; font-size: 12px; }
+        .box strong { display: block; font-size: 18px; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+        th { background: #f3f4f6; }
+        @media print { button { display: none; } body { margin: 12mm; } }
+    </style>
+</head>
+<body>
+    <button onclick="window.print()">Imprimir / guardar como PDF</button>
+    <div class="header">
+        <div>
+            <h1>{{ configuracion.nombre_app or "Espacio Arte Academia" }}</h1>
+            <div class="muted">Reporte ejecutivo de estadisticas</div>
+        </div>
+        <div>
+            <strong>{{ filtros.desde }} a {{ filtros.hasta }}</strong><br>
+            <span class="muted">Emitido: {{ fecha }}</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box"><span>Ingresos</span><strong>${{ "%.2f"|format(datos.kpis.ingresos) }}</strong></div>
+        <div class="box"><span>Ganancia neta</span><strong>${{ "%.2f"|format(datos.kpis.ganancias_netas) }}</strong></div>
+        <div class="box"><span>Deuda total</span><strong>${{ "%.2f"|format(datos.kpis.deuda_total) }}</strong></div>
+        <div class="box"><span>Asistencia</span><strong>{{ "%.1f"|format(datos.kpis.tasa_asistencia) }}%</strong></div>
+        <div class="box"><span>MRR</span><strong>${{ "%.2f"|format(datos.kpis.mrr) }}</strong></div>
+        <div class="box"><span>Ticket promedio</span><strong>${{ "%.2f"|format(datos.kpis.ticket_promedio) }}</strong></div>
+        <div class="box"><span>Alumnos activos</span><strong>{{ datos.kpis.alumnos_activos }}</strong></div>
+        <div class="box"><span>Morosidad</span><strong>{{ "%.1f"|format(datos.kpis.morosidad) }}%</strong></div>
+    </div>
+
+    <h2>Alertas</h2>
+    <ul>
+        {% for alerta in datos.alertas %}
+        <li><strong>{{ alerta.titulo }}:</strong> {{ alerta.detalle }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Rendimiento de profesores</h2>
+    <table>
+        <thead><tr><th>Profesor</th><th>Clases</th><th>Alumnos</th><th>Canceladas</th><th>Recuperos</th><th>Asistencia</th></tr></thead>
+        <tbody>
+            {% for p in datos.profesores %}
+            <tr>
+                <td>{{ p.nombre_apellido }}</td>
+                <td>{{ p.clases }}</td>
+                <td>{{ p.alumnos }}</td>
+                <td>{{ p.canceladas }}</td>
+                <td>{{ p.recuperos }}</td>
+                <td>{{ "%.1f"|format((p.presentes or 0) / (p.asistencias or 1) * 100) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Promociones</h2>
+    <table>
+        <thead><tr><th>Promocion</th><th>Usos</th><th>Impacto</th></tr></thead>
+        <tbody>
+            {% for promo in datos.promociones %}
+            <tr><td>{{ promo.nombre }}</td><td>{{ promo.usos }}</td><td>${{ "%.2f"|format(promo.impacto or 0) }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

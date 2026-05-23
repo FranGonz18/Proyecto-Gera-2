@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Estado de cuenta - {{ alumno.apellido_nombre }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; color: #111827; margin: 28px; }
+        h1, h2 { margin: 0; }
+        .muted { color: #6b7280; }
+        .header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid #d1d5db; padding-bottom: 14px; margin-bottom: 18px; }
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0; }
+        .box { border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; }
+        .box span { display: block; color: #6b7280; font-size: 12px; }
+        .box strong { display: block; font-size: 18px; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; text-align: left; vertical-align: top; }
+        th { background: #f3f4f6; }
+        .right { text-align: right; }
+        @media print { button { display: none; } body { margin: 12mm; } }
+    </style>
+</head>
+<body>
+    <button onclick="window.print()">Imprimir / guardar como PDF</button>
+    <div class="header">
+        <div>
+            <h1>{{ configuracion.nombre_app or "Espacio Arte Academia" }}</h1>
+            <p class="muted">Estado de cuenta</p>
+        </div>
+        <div>
+            <strong>{{ alumno.apellido_nombre }}</strong><br>
+            <span class="muted">DNI {{ alumno.dni or "-" }}</span><br>
+            <span class="muted">Emitido: {{ fecha }}</span>
+        </div>
+    </div>
+
+    <div class="summary">
+        <div class="box"><span>Deuda actual</span><strong>${{ "%.2f"|format(resumen.deuda_actual) }}</strong></div>
+        <div class="box"><span>Saldo a favor</span><strong>${{ "%.2f"|format(resumen.saldo_a_favor) }}</strong></div>
+        <div class="box"><span>Total debe</span><strong>${{ "%.2f"|format(resumen.total_debe) }}</strong></div>
+        <div class="box"><span>Total haber</span><strong>${{ "%.2f"|format(resumen.total_haber) }}</strong></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Concepto</th>
+                <th>Tipo</th>
+                <th class="right">Debe</th>
+                <th class="right">Haber</th>
+                <th class="right">Saldo</th>
+                <th>Metodo</th>
+                <th>Comp.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha }}</td>
+                <td>{{ m.concepto }}</td>
+                <td>{{ m.tipo_movimiento }}</td>
+                <td class="right">${{ "%.2f"|format(m.debe or 0) }}</td>
+                <td class="right">${{ "%.2f"|format(m.haber or 0) }}</td>
+                <td class="right">${{ "%.2f"|format(m.saldo_acumulado or 0) }}</td>
+                <td>{{ m.metodo_pago or "-" }}</td>
+                <td>{{ m.comprobante or "-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+:root {
+    --app-bg: {{ configuracion.color_fondo | default("#f5f7fb") }};
+    --app-text: {{ configuracion.color_texto | default("#111827") }};
+    --app-sidebar: {{ configuracion.color_sidebar | default("#ffffff") }};
+    --app-sidebar-text: {{ configuracion.color_sidebar_texto | default("#374151") }};
+    --app-card: {{ configuracion.color_tarjeta | default("#ffffff") }};
+    --app-border: {{ configuracion.color_borde | default("#e5e7eb") }};
+    --app-primary: {{ configuracion.color_primario | default("#3b82f6") }};
+    --app-success: {{ configuracion.color_exito | default("#22c55e") }};
+    --app-danger: {{ configuracion.color_peligro | default("#ef4444") }};
+    --app-radius: {{ configuracion.radio_bordes | default("14") }}px;
+    --app-muted: color-mix(in srgb, var(--app-text) 62%, transparent);
+    --app-sidebar-muted: color-mix(in srgb, var(--app-sidebar-text) 62%, transparent);
+    --app-primary-soft: color-mix(in srgb, var(--app-primary) 14%, transparent);
+}
+
+body {
+    background: var(--app-bg);
+    color: var(--app-text);
+    min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 230px;
+    height: 100vh;
+    position: fixed;
+    background: var(--app-sidebar);
+    border-right: 1px solid var(--app-border);
+    padding: 20px;
+}
+
+.sidebar h4 {
+    font-weight: bold;
+    color: var(--app-sidebar-text);
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px;
+    border-radius: 8px;
+    color: var(--app-sidebar-text);
+    text-decoration: none;
+    margin-bottom: 5px;
+}
+
+.sidebar a:hover {
+    background: var(--app-primary-soft);
+    color: var(--app-sidebar-text);
+}
+
+/* CONTENT */
+.content {
+    margin-left: 250px;
+    padding: 30px;
+}
+
+/* CARDS */
+.card {
+    border-radius: var(--app-radius);
+    border: 1px solid var(--app-border);
+    background: var(--app-card);
+    color: var(--app-text);
+}
+
+/* FORM CARD */
+.form-card {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: var(--app-text);
+    padding: 15px;
+    border-radius: var(--app-radius);
+}
+
+/* INPUTS */
+input, select, textarea, .form-control, .form-select {
+    background: var(--app-card) !important;
+    border: 1px solid var(--app-border) !important;
+    color: var(--app-text) !important;
+    border-radius: 8px !important;
+    padding: 10px;
+}
+
+input:focus, select:focus, textarea:focus, .form-control:focus, .form-select:focus {
+    background: var(--app-card) !important;
+    color: var(--app-text) !important;
+    border-color: var(--app-primary) !important;
+    box-shadow: 0 0 0 2px var(--app-primary-soft);
+}
+
+/* BOTONES */
+.btn-primary {
+    background: var(--app-primary);
+    border: none;
+}
+
+.btn-success {
+    background: var(--app-success);
+    border: none;
+}
+
+.btn-danger {
+    background: var(--app-danger);
+    border: none;
+}
+
+/* LISTAS */
+.list-group-item {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: var(--app-text);
+    border-radius: 10px;
+    margin-bottom: 6px;
+}
+
+#calendar {
+    width: 100%;
+    height: 600px;
+    background: var(--app-card);
+    border-radius: 10px;
+    color: var(--app-text);
+}
+
+.modal-content, .dropdown-menu {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: var(--app-text);
+}
+
+.modal-header, .modal-footer {
+    border-color: var(--app-border);
+}
+
+.table {
+    --bs-table-bg: var(--app-card);
+    --bs-table-color: var(--app-text);
+    --bs-table-border-color: var(--app-border);
+}
+
+.text-muted {
+    color: var(--app-muted) !important;
+}
+
+.sidebar .text-muted {
+    color: var(--app-sidebar-muted) !important;
+}
+
+.fc {
+    color: var(--app-text);
+}
+
+.fc .fc-button-primary {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+}
+
+.fc .fc-scrollgrid,
+.fc-theme-standard td,
+.fc-theme-standard th {
+    border-color: var(--app-border);
+}
+
+.brand-block {
+    margin-bottom: 14px;
+    text-align: center;
+}
+
+.brand-block img {
+    background: #ffffff;
+    border: 1px solid var(--app-border);
+    border-radius: 50%;
+    display: block;
+    margin: 0 auto 10px;
+    height: 96px;
+    width: 96px;
+    object-fit: contain;
+    padding: 0;
+}
+
+.brand-block h4 {
+    font-size: 18px;
+    line-height: 1.15;
+    margin: 0;
+}
+
+.theme-presets {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.theme-preset {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    color: var(--app-text);
+    display: grid;
+    gap: 2px;
+    padding: 12px;
+    text-align: left;
+}
+
+.theme-preset:hover {
+    border-color: var(--app-primary);
+    box-shadow: 0 0 0 3px var(--app-primary-soft);
+}
+
+.theme-preset small {
+    color: var(--app-muted);
+}
+
+.theme-swatch {
+    background: linear-gradient(135deg, var(--swatch-bg) 0 48%, var(--swatch-card) 48% 70%, var(--swatch-main) 70% 100%);
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    display: block;
+    height: 28px;
+    margin-bottom: 6px;
+    width: 54px;
+}
+
+.theme-button {
+    align-items: center;
+    background: var(--app-primary);
+    border: none;
+    border-radius: 50%;
+    bottom: 24px;
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.22);
+    color: #ffffff;
+    display: flex;
+    font-size: 28px;
+    font-weight: 700;
+    height: 54px;
+    justify-content: center;
+    position: fixed;
+    right: 24px;
+    width: 54px;
+    z-index: 1040;
+}
+
+.table-toolbar {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.table-search {
+    max-width: 340px;
+}
+
+.action-group {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+    .content {
+        margin-left: 0;
+        padding: 18px;
+        padding-top: 260px;
+    }
+
+    .sidebar {
+        height: auto;
+        left: 0;
+        right: 0;
+        top: 0;
+        width: 100%;
+        z-index: 1030;
+    }
+
+    .brand-block {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        margin-bottom: 10px;
+        text-align: left;
+    }
+
+    .brand-block img {
+        height: 58px;
+        margin: 0;
+        width: 58px;
+    }
+
+    .sidebar a {
+        display: inline-block;
+        margin: 2px;
+        padding: 8px 10px;
+    }
+
+    .table-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .table-search {
+        max-width: none;
+        width: 100%;
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="brand-block">
+        <img src="{{ url_for('static', filename=configuracion.logo_app | default('logo.jpeg')) }}" alt="{{ configuracion.nombre_app | default('Espacio Arte Academia') }}">
+        <h4>{{ configuracion.nombre_app | default("Espacio Arte Academia") }}</h4>
+    </div>
+    {% if usuario_actual %}
+    <div class="text-muted small mb-1">{{ usuario_actual.nombre }}</div>
+    <div class="text-muted small mb-3">{{ usuario_actual.rol_nombre }}</div>
+    {% endif %}
+    <hr>
+
+    {% if puede("dashboard.ver") %}
+    <a href="/">Dashboard</a>
+    {% endif %}
+    {% if puede("profesores.ver") %}
+    <a href="/profesores">Profesores</a>
+    {% endif %}
+    {% if puede("alumnos.ver") %}
+    <a href="/alumnos">Alumnos</a>
+    {% endif %}
+    {% if puede("usuarios.ver") %}
+    <a href="/usuarios">Usuarios</a>
+    {% endif %}
+
+    {% if puede("clases.ver") %}
+    <a href="/clases">Clases</a>
+    {% endif %}
+
+    {% if puede("caja.ver") %}
+    <a href="/caja">Caja</a>
+    {% endif %}
+
+    {% if usuario_actual %}
+    <hr>
+    <a href="/logout">Cerrar sesion</a>
+    {% endif %}
+</div>
+
+<div class="content">
+{% block content %}{% endblock %}
+</div>
+
+{% if puede("configuracion.editar") %}
+<button class="theme-button" data-bs-toggle="modal" data-bs-target="#modalApariencia" title="Personalizar apariencia">
+    +
+</button>
+
+<div class="modal fade" id="modalApariencia" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="/guardar_colores">
+        <div class="modal-header">
+          <h5 class="modal-title">Personalizar apariencia</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label>Nombre de la aplicación</label>
+            <input name="nombre_app" class="form-control" value="{{ configuracion.nombre_app }}">
+          </div>
+
+          <h6>Estilos completos</h6>
+          <div class="theme-presets mb-4">
+            <button type="button" class="theme-preset" onclick="aplicarTema('espacio')">
+              <span class="theme-swatch" style="--swatch-bg:#f7fbfb; --swatch-main:#10aaa5; --swatch-card:#ffffff;"></span>
+              <strong>Espacio Arte</strong>
+              <small>Claro, limpio y legible</small>
+            </button>
+            <button type="button" class="theme-preset" onclick="aplicarTema('claro')">
+              <span class="theme-swatch" style="--swatch-bg:#f5f7fb; --swatch-main:#2563eb; --swatch-card:#ffffff;"></span>
+              <strong>Claro</strong>
+              <small>Neutro para trabajar</small>
+            </button>
+            <button type="button" class="theme-preset" onclick="aplicarTema('noche')">
+              <span class="theme-swatch" style="--swatch-bg:#0f172a; --swatch-main:#2dd4bf; --swatch-card:#1e293b;"></span>
+              <strong>Noche</strong>
+              <small>Oscuro con contraste</small>
+            </button>
+            <button type="button" class="theme-preset" onclick="aplicarTema('contraste')">
+              <span class="theme-swatch" style="--swatch-bg:#ffffff; --swatch-main:#0f766e; --swatch-card:#f8fafc;"></span>
+              <strong>Alto contraste</strong>
+              <small>Letras bien marcadas</small>
+            </button>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Fondo</label>
+              <input type="color" name="color_fondo" class="form-control form-control-color theme-input" value="{{ configuracion.color_fondo }}">
+            </div>
+            <div class="col-md-6">
+              <label>Texto</label>
+              <input type="color" name="color_texto" class="form-control form-control-color theme-input" value="{{ configuracion.color_texto }}">
+            </div>
+            <div class="col-md-6">
+              <label>Menu lateral</label>
+              <input type="color" name="color_sidebar" class="form-control form-control-color theme-input" value="{{ configuracion.color_sidebar }}">
+            </div>
+            <div class="col-md-6">
+              <label>Texto menu</label>
+              <input type="color" name="color_sidebar_texto" class="form-control form-control-color theme-input" value="{{ configuracion.color_sidebar_texto }}">
+            </div>
+            <div class="col-md-6">
+              <label>Tarjetas</label>
+              <input type="color" name="color_tarjeta" class="form-control form-control-color theme-input" value="{{ configuracion.color_tarjeta }}">
+            </div>
+            <div class="col-md-6">
+              <label>Bordes</label>
+              <input type="color" name="color_borde" class="form-control form-control-color theme-input" value="{{ configuracion.color_borde }}">
+            </div>
+            <div class="col-md-4">
+              <label>Primario</label>
+              <input type="color" name="color_primario" class="form-control form-control-color theme-input" value="{{ configuracion.color_primario }}">
+            </div>
+            <div class="col-md-4">
+              <label>Exito</label>
+              <input type="color" name="color_exito" class="form-control form-control-color theme-input" value="{{ configuracion.color_exito }}">
+            </div>
+            <div class="col-md-4">
+              <label>Peligro</label>
+              <input type="color" name="color_peligro" class="form-control form-control-color theme-input" value="{{ configuracion.color_peligro }}">
+            </div>
+            <div class="col-md-12">
+              <label>Redondez de tarjetas</label>
+              <input type="range" min="4" max="24" step="1" name="radio_bordes" class="form-range" value="{{ configuracion.radio_bordes }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" onclick="aplicarTema('default')">Restablecer</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary">Guardar apariencia</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const temas = {
+    espacio: {
+        color_fondo: "#f7fbfb",
+        color_texto: "#263238",
+        color_sidebar: "#ffffff",
+        color_sidebar_texto: "#263238",
+        color_tarjeta: "#ffffff",
+        color_borde: "#d8eeee",
+        color_primario: "#10aaa5",
+        color_exito: "#22c55e",
+        color_peligro: "#ef4444",
+        radio_bordes: "12"
+    },
+    claro: {
+        color_fondo: "#f5f7fb",
+        color_texto: "#111827",
+        color_sidebar: "#ffffff",
+        color_sidebar_texto: "#374151",
+        color_tarjeta: "#ffffff",
+        color_borde: "#e5e7eb",
+        color_primario: "#2563eb",
+        color_exito: "#16a34a",
+        color_peligro: "#dc2626",
+        radio_bordes: "14"
+    },
+    noche: {
+        color_fondo: "#0f172a",
+        color_texto: "#f9fafb",
+        color_sidebar: "#111827",
+        color_sidebar_texto: "#f8fafc",
+        color_tarjeta: "#1e293b",
+        color_borde: "#475569",
+        color_primario: "#2dd4bf",
+        color_exito: "#4ade80",
+        color_peligro: "#fb7185",
+        radio_bordes: "10"
+    },
+    contraste: {
+        color_fondo: "#ffffff",
+        color_texto: "#0f172a",
+        color_sidebar: "#ffffff",
+        color_sidebar_texto: "#0f172a",
+        color_tarjeta: "#f8fafc",
+        color_borde: "#94a3b8",
+        color_primario: "#0f766e",
+        color_exito: "#15803d",
+        color_peligro: "#b91c1c",
+        radio_bordes: "8"
+    },
+    default: {
+        color_fondo: "#f7fbfb",
+        color_texto: "#263238",
+        color_sidebar: "#ffffff",
+        color_sidebar_texto: "#263238",
+        color_tarjeta: "#ffffff",
+        color_borde: "#d8eeee",
+        color_primario: "#10aaa5",
+        color_exito: "#22c55e",
+        color_peligro: "#ef4444",
+        radio_bordes: "12"
+    }
+};
+
+function aplicarTema(nombre) {
+    const tema = temas[nombre];
+    if (!tema) return;
+    Object.entries(tema).forEach(([campo, valor]) => {
+        const input = document.querySelector(`#modalApariencia [name="${campo}"]`);
+        if (input) input.value = valor;
+    });
+    actualizarVistaPrevia();
+}
+
+const variablesCss = {
+    color_fondo: "--app-bg",
+    color_texto: "--app-text",
+    color_sidebar: "--app-sidebar",
+    color_sidebar_texto: "--app-sidebar-text",
+    color_tarjeta: "--app-card",
+    color_borde: "--app-border",
+    color_primario: "--app-primary",
+    color_exito: "--app-success",
+    color_peligro: "--app-danger"
+};
+
+function actualizarVistaPrevia() {
+    Object.entries(variablesCss).forEach(([campo, variable]) => {
+        const input = document.querySelector(`#modalApariencia [name="${campo}"]`);
+        if (input) document.documentElement.style.setProperty(variable, input.value);
+    });
+    const radio = document.querySelector('#modalApariencia [name="radio_bordes"]');
+    if (radio) document.documentElement.style.setProperty("--app-radius", `${radio.value}px`);
+}
+
+document.querySelectorAll("#modalApariencia .theme-input, #modalApariencia [name='radio_bordes']").forEach((input) => {
+    input.addEventListener("input", actualizarVistaPrevia);
+});
+
+document.querySelectorAll("[data-table-search]").forEach((input) => {
+    const tableSelector = input.dataset.tableSearch;
+    const table = document.querySelector(tableSelector);
+    if (!table) return;
+
+    input.addEventListener("input", () => {
+        const value = input.value.trim().toLowerCase();
+        table.querySelectorAll("tbody tr").forEach((row) => {
+            row.style.display = row.innerText.toLowerCase().includes(value) ? "" : "none";
+        });
+    });
+});
+</script>
+
+</body>
+</html>

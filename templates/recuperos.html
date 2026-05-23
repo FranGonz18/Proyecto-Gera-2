@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">Recuperos de clases</h3>
+        <p class="text-muted mb-0">Recuperaciones, reprogramaciones, compensaciones e impacto en liquidaciones.</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalRecupero" onclick="nuevoRecupero()">Nuevo recupero</button>
+</div>
+
+{% if request.args.get("mensaje") %}
+<div class="alert alert-{{ request.args.get('tipo', 'info') }}">{{ request.args.get("mensaje") }}</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card p-3"><h6>Pendientes</h6><h3>{{ estadisticas.pendientes or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Programados</h6><h3>{{ estadisticas.programados or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Realizados</h6><h3>{{ estadisticas.realizados or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Vencidos</h6><h3>{{ estadisticas.vencidos or 0 }}</h3></div></div>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label>Alumno</label>
+            <select name="alumno_id" class="form-control">
+                <option value="">Todos</option>
+                {% for alumno in alumnos %}
+                <option value="{{ alumno.id }}" {% if filtros.alumno_id == alumno.id %}selected{% endif %}>{{ alumno.apellido_nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Profesor</label>
+            <select name="profesor_id" class="form-control">
+                <option value="">Todos</option>
+                {% for profesor in profesores %}
+                <option value="{{ profesor.id }}" {% if filtros.profesor_id == profesor.id %}selected{% endif %}>{{ profesor.nombre_apellido }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todos</option>
+                {% for estado in estados_recupero %}
+                <option value="{{ estado }}" {% if filtros.estado == estado %}selected{% endif %}>{{ estado|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label>Tipo</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos</option>
+                {% for tipo in tipos_recupero %}
+                <option value="{{ tipo }}" {% if filtros.tipo == tipo %}selected{% endif %}>{{ tipo.replace("_", " ") }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </form>
+</div>
+
+<div class="card p-3">
+    <div class="table-toolbar">
+        <h5 class="mb-0">Listado de recuperos</h5>
+        <input class="form-control table-search" data-table-search="#tablaRecuperos" placeholder="Buscar recupero">
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle" id="tablaRecuperos">
+            <thead>
+                <tr>
+                    <th>Alumno</th>
+                    <th>Profesor</th>
+                    <th>Motivo</th>
+                    <th>Clase original</th>
+                    <th>Recuperacion</th>
+                    <th>Finanzas</th>
+                    <th>Estado</th>
+                    <th class="text-end">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recuperos %}
+                <tr>
+                    <td><strong>{{ r.alumno or "-" }}</strong><div class="text-muted small">#{{ r.id }}</div></td>
+                    <td>{{ r.profesor or "-" }}</td>
+                    <td>{{ r.motivo.replace("_", " ") }}<div class="text-muted small">{{ r.tipo.replace("_", " ") }}</div></td>
+                    <td>{{ r.fecha_original or "-" }}</td>
+                    <td>
+                        {{ r.fecha_recuperacion or r.fecha_programada or "Sin fecha" }}
+                        <div class="text-muted small">Vence: {{ r.fecha_limite or "-" }}</div>
+                    </td>
+                    <td class="small">
+                        {% if r.gratuito %}<span class="badge bg-info text-dark">Gratis</span>{% else %}<span class="badge bg-warning text-dark">${{ "%.2f"|format(r.costo_adicional or 0) }}</span>{% endif %}
+                        {% if r.profesor_cobra %}<span class="badge bg-success">Profesor cobra</span>{% else %}<span class="badge bg-secondary">Sin pago prof.</span>{% endif %}
+                        {% if not r.afecta_liquidacion %}<span class="badge bg-dark">No liquida</span>{% endif %}
+                    </td>
+                    <td><span class="badge bg-primary">{{ r.estado|capitalize }}</span></td>
+                    <td class="text-end">
+                        <div class="action-group">
+                            <button class="btn btn-sm btn-outline-primary" data-recupero='{{ dict(r)|tojson }}' onclick="editarRecupero(this)">Editar</button>
+                            {% if r.estado in ["pendiente", "vencido"] %}
+                            <button class="btn btn-sm btn-outline-success" data-recupero='{{ dict(r)|tojson }}' onclick="programarRecupero(this)">Programar</button>
+                            {% endif %}
+                            <form method="POST" action="/cambiar_estado_recupero">
+                                <input type="hidden" name="recupero_id" value="{{ r.id }}">
+                                <input type="hidden" name="estado" value="realizado">
+                                <button class="btn btn-sm btn-outline-secondary">Realizado</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No hay recuperos para mostrar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalRecupero" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="/guardar_recupero" id="formRecupero">
+        <input type="hidden" name="id">
+        <div class="modal-header">
+          <h5 class="modal-title">Recupero</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label>Alumno</label>
+              <select name="alumno_id" class="form-control" required>
+                <option value="">Seleccionar</option>
+                {% for alumno in alumnos %}<option value="{{ alumno.id }}">{{ alumno.apellido_nombre }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Profesor</label>
+              <select name="profesor_id" class="form-control" required>
+                <option value="">Seleccionar</option>
+                {% for profesor in profesores %}<option value="{{ profesor.id }}">{{ profesor.nombre_apellido }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label>Clase original</label>
+              <select name="clase_original_id" class="form-control">
+                <option value="">Sin clase vinculada</option>
+                {% for clase in clases_originales %}<option value="{{ clase.id }}">#{{ clase.id }} - {{ clase.profesor }} - {{ clase.fecha }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Motivo</label>
+              <select name="motivo" class="form-control">
+                {% for motivo in motivos_recupero %}<option value="{{ motivo }}">{{ motivo.replace("_", " ") }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Tipo</label>
+              <select name="tipo" class="form-control">
+                {% for tipo in tipos_recupero %}<option value="{{ tipo }}">{{ tipo.replace("_", " ") }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Estado</label>
+              <select name="estado" class="form-control">
+                {% for estado in estados_recupero %}<option value="{{ estado }}">{{ estado|capitalize }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Fecha limite</label>
+              <input type="date" name="fecha_limite" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Costo adicional</label>
+              <input type="number" step="0.01" min="0" name="costo_adicional" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Motivo manual</label>
+              <input name="motivo_manual" class="form-control">
+            </div>
+            <div class="col-md-12">
+              <label>Observaciones</label>
+              <textarea name="observaciones" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+
+          <div class="row g-2 mt-3">
+            <div class="col-md-3"><label><input type="checkbox" name="afecta_liquidacion" value="1" checked> Afecta liquidacion</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="profesor_cobra" value="1" checked> Profesor cobra</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="academia_absorbe" value="1" checked> Absorbe academia</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="genera_deuda" value="1"> Genera deuda</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="cuenta_asistencia" value="1" checked> Cuenta asistencia</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="consume_cupo" value="1" checked> Consume cupo</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="reutilizable" value="1"> Reutilizable</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="gratuito" value="1" checked> Gratuito</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="incluido_en_cuota" value="1" checked> Incluido en cuota</label></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalProgramar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/programar_recupero" id="formProgramar">
+        <input type="hidden" name="recupero_id">
+        <div class="modal-header">
+          <h5 class="modal-title">Programar recupero</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <label>Profesor</label>
+          <select name="profesor_id" class="form-control mb-2">
+            {% for profesor in profesores %}<option value="{{ profesor.id }}">{{ profesor.nombre_apellido }}</option>{% endfor %}
+          </select>
+          <label>Fecha y hora</label>
+          <input type="datetime-local" name="fecha" class="form-control mb-2" required>
+          <div class="row g-2">
+            <div class="col-md-4"><label>Duracion</label><input type="number" step="0.25" min="0.25" name="duracion" class="form-control" value="1"></div>
+            <div class="col-md-4"><label>Cupo max.</label><input type="number" min="0" name="capacidad_maxima" class="form-control" value="1"></div>
+            <div class="col-md-4"><label>Costo</label><input type="number" step="0.01" min="0" name="costo_adicional" class="form-control" value="0"></div>
+          </div>
+          <label class="mt-2">Tipo de clase</label>
+          <select name="tipo_clase_id" class="form-control">
+            {% for tipo in tipos_clase %}<option value="{{ tipo.id }}">{{ tipo.nombre|capitalize }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-success">Programar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const formRecupero = document.getElementById("formRecupero");
+const formProgramar = document.getElementById("formProgramar");
+
+function nuevoRecupero() {
+    formRecupero.reset();
+    formRecupero.id.value = "";
+    ["afecta_liquidacion", "profesor_cobra", "academia_absorbe", "cuenta_asistencia", "consume_cupo", "gratuito", "incluido_en_cuota"].forEach(nombre => {
+        if (formRecupero.elements[nombre]) formRecupero.elements[nombre].checked = true;
+    });
+}
+
+function setFormValue(form, key, value) {
+    const campo = form.elements[key];
+    if (!campo) return;
+    if (campo.type === "checkbox") {
+        campo.checked = String(value) === "1" || value === true;
+    } else {
+        campo.value = value ?? "";
+    }
+}
+
+function editarRecupero(btn) {
+    const recupero = JSON.parse(btn.dataset.recupero);
+    nuevoRecupero();
+    Object.entries(recupero).forEach(([key, value]) => setFormValue(formRecupero, key, value));
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalRecupero")).show();
+}
+
+function programarRecupero(btn) {
+    const recupero = JSON.parse(btn.dataset.recupero);
+    formProgramar.reset();
+    formProgramar.recupero_id.value = recupero.id;
+    formProgramar.profesor_id.value = recupero.profesor_id || "";
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalProgramar")).show();
+}
+</script>
+
+{% endblock %}

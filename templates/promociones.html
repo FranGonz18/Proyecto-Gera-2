@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="mb-1">Descuentos y promociones</h3>
+        <p class="text-muted mb-0">Reglas automaticas, promociones manuales e impacto financiero.</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalPromocion" onclick="nuevaPromocion()">Nueva promocion</button>
+</div>
+
+{% if request.args.get("mensaje") %}
+<div class="alert alert-{{ request.args.get('tipo', 'info') }}">{{ request.args.get("mensaje") }}</div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card p-3"><h6>Activas</h6><h3>{{ estadisticas.activas or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Automaticas</h6><h3>{{ estadisticas.automaticas or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Vencidas</h6><h3>{{ estadisticas.vencidas or 0 }}</h3></div></div>
+    <div class="col-md-3"><div class="card p-3"><h6>Descuentos aplicados</h6><h3>${{ "%.2f"|format(impacto.descuentos or 0) }}</h3></div></div>
+</div>
+
+<div class="card p-3 mb-3">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label>Estado</label>
+            <select name="estado" class="form-control">
+                <option value="">Todas</option>
+                <option value="activas" {% if filtros.estado == "activas" %}selected{% endif %}>Activas</option>
+                <option value="inactivas" {% if filtros.estado == "inactivas" %}selected{% endif %}>Inactivas</option>
+                <option value="vencidas" {% if filtros.estado == "vencidas" %}selected{% endif %}>Vencidas</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label>Tipo</label>
+            <select name="tipo" class="form-control">
+                <option value="">Todos</option>
+                {% for tipo in tipos_promocion %}
+                <option value="{{ tipo }}" {% if filtros.tipo == tipo %}selected{% endif %}>{{ tipo.replace("_", " ") }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-primary">Filtrar</button>
+            <a href="/promociones" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+    </form>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card p-3">
+            <div class="table-toolbar">
+                <h5 class="mb-0">Promociones configuradas</h5>
+                <input class="form-control table-search" data-table-search="#tablaPromociones" placeholder="Buscar promocion">
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle" id="tablaPromociones">
+                    <thead>
+                        <tr>
+                            <th>Promocion</th>
+                            <th>Tipo</th>
+                            <th>Regla</th>
+                            <th>Usos</th>
+                            <th>Impacto</th>
+                            <th>Estado</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for promo in promociones %}
+                        <tr>
+                            <td>
+                                <span class="badge me-2" style="background: {{ promo.color or '#10aaa5' }};">&nbsp;</span>
+                                <strong>{{ promo.nombre or promo.descripcion }}</strong>
+                                <div class="text-muted small">{{ promo.descripcion or promo.motivo }}</div>
+                            </td>
+                            <td>{{ promo.tipo.replace("_", " ") }}</td>
+                            <td class="small">
+                                {% if promo.apellido_nombre %}Alumno: {{ promo.apellido_nombre }}<br>{% endif %}
+                                {% if promo.tipo_clase_nombre %}Clase: {{ promo.tipo_clase_nombre }}<br>{% endif %}
+                                {% if promo.profesor_nombre %}Profesor: {{ promo.profesor_nombre }}<br>{% endif %}
+                                {% if promo.metodo_pago %}Pago: {{ promo.metodo_pago }}<br>{% endif %}
+                                {% if promo.nuevo_alumno %}Nuevo alumno<br>{% endif %}
+                                {% if promo.cantidad_clases_min %}Min. clases: {{ promo.cantidad_clases_min }}{% endif %}
+                            </td>
+                            <td>{{ promo.usos_actuales or 0 }}{% if promo.limite_usos %}/{{ promo.limite_usos }}{% endif %}</td>
+                            <td>
+                                {% if promo.porcentaje_descuento %}{{ promo.porcentaje_descuento }}%{% endif %}
+                                {% if promo.monto_descuento %}${{ "%.2f"|format(promo.monto_descuento) }}{% endif %}
+                            </td>
+                            <td>
+                                {% if promo.activa %}
+                                <span class="badge bg-success">Activa</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactiva</span>
+                                {% endif %}
+                                {% if promo.automatica %}<span class="badge bg-primary">Automatica</span>{% endif %}
+                                {% if promo.afecta_profesor %}<span class="badge bg-warning text-dark">Afecta profesor</span>{% else %}<span class="badge bg-info text-dark">Absorbe academia</span>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="action-group">
+                                    <button class="btn btn-sm btn-outline-primary" data-promo='{{ dict(promo)|tojson }}' onclick="editarPromocion(this)">Editar</button>
+                                    <form method="POST" action="/promociones/toggle/{{ promo.id }}">
+                                        <button class="btn btn-sm btn-outline-secondary">{{ "Desactivar" if promo.activa else "Activar" }}</button>
+                                    </form>
+                                    <form method="POST" action="/promociones/eliminar/{{ promo.id }}" onsubmit="return confirm('Eliminar esta promocion? Se mantiene el historial de uso.')">
+                                        <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-muted text-center py-4">Todavia no hay promociones cargadas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card p-3 mb-3">
+            <h5>Mas usadas</h5>
+            {% for item in ranking %}
+            <div class="d-flex justify-content-between border-bottom py-2">
+                <span>{{ item.nombre or "Promocion" }}</span>
+                <strong>{{ item.usos }} usos</strong>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Sin usos registrados.</p>
+            {% endfor %}
+        </div>
+
+        <div class="card p-3">
+            <h5>Historial de uso</h5>
+            {% for uso in usos %}
+            <div class="border-bottom py-2">
+                <strong>{{ uso.promocion or uso.nombre }}</strong>
+                <div class="small">{{ uso.apellido_nombre }} - {{ uso.pago_tipo }} - ${{ "%.2f"|format(uso.descuento or 0) }}</div>
+                <div class="text-muted small">{{ uso.fecha }}{% if uso.usuario_nombre %} por {{ uso.usuario_nombre }}{% endif %}</div>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Sin aplicaciones registradas.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPromocion" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <form method="POST" action="/guardar_promocion" id="formPromocion">
+        <input type="hidden" name="id">
+        <div class="modal-header">
+          <h5 class="modal-title">Promocion</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label>Nombre</label>
+              <input name="nombre" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label>Tipo</label>
+              <select name="tipo" class="form-control">
+                {% for tipo in tipos_promocion %}
+                <option value="{{ tipo }}">{{ tipo.replace("_", " ") }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label>% descuento</label>
+              <input type="number" step="0.01" min="0" max="100" name="porcentaje_descuento" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label>$ descuento</label>
+              <input type="number" step="0.01" min="0" name="monto_descuento" class="form-control">
+            </div>
+            <div class="col-md-12">
+              <label>Descripcion interna</label>
+              <textarea name="descripcion" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-md-3">
+              <label>Fecha inicio</label>
+              <input type="date" name="fecha_inicio" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Fecha fin</label>
+              <input type="date" name="fecha_fin" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label>Limite usos</label>
+              <input type="number" min="0" name="limite_usos" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label>Prioridad</label>
+              <input type="number" name="prioridad" class="form-control" value="0">
+            </div>
+            <div class="col-md-2">
+              <label>Color</label>
+              <input type="color" name="color" class="form-control form-control-color" value="#10aaa5">
+            </div>
+
+            <div class="col-md-3">
+              <label>Alumno especifico</label>
+              <select name="aplica_alumno_id" class="form-control">
+                <option value="">Todos</option>
+                {% for alumno in alumnos %}
+                <option value="{{ alumno.id }}">{{ alumno.apellido_nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Tipo de clase</label>
+              <select name="tipo_clase_id" class="form-control">
+                <option value="">Todos</option>
+                {% for tipo in tipos_clase %}
+                <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Profesor</label>
+              <select name="profesor_id" class="form-control">
+                <option value="">Todos</option>
+                {% for profesor in profesores %}
+                <option value="{{ profesor.id }}">{{ profesor.nombre_apellido }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Metodo de pago</label>
+              <select name="metodo_pago" class="form-control">
+                <option value="">Todos</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label>Grupo familiar</label>
+              <input name="grupo_familiar" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Instrumento</label>
+              <input name="instrumento" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Cantidad minima de clases</label>
+              <input type="number" min="0" name="cantidad_clases_min" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label>Motivo administrativo</label>
+              <input name="motivo" class="form-control">
+            </div>
+          </div>
+
+          <div class="row g-3 mt-2">
+            <div class="col-md-3"><label><input type="checkbox" name="activa" value="1" checked> Activa</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="automatica" value="1"> Automatica</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="acumulable" value="1"> Acumulable</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="nuevo_alumno" value="1"> Solo nuevo alumno</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="alumno_activo" value="1" checked> Alumno activo</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="aplica_cuota" value="1" checked> Aplica cuota</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="aplica_matricula" value="1" checked> Aplica matricula</label></div>
+            <div class="col-md-3"><label><input type="checkbox" name="afecta_profesor" value="1"> Descuento afecta profesor</label></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary">Guardar promocion</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const formPromo = document.getElementById("formPromocion");
+
+function nuevaPromocion() {
+    formPromo.reset();
+    formPromo.id.value = "";
+    formPromo.activa.checked = true;
+    formPromo.aplica_cuota.checked = true;
+    formPromo.aplica_matricula.checked = true;
+    formPromo.alumno_activo.checked = true;
+    formPromo.color.value = "#10aaa5";
+}
+
+function editarPromocion(btn) {
+    const promo = JSON.parse(btn.dataset.promo);
+    nuevaPromocion();
+    Object.entries(promo).forEach(([key, value]) => {
+        const campo = formPromo.elements[key];
+        if (!campo) return;
+        if (campo.type === "checkbox") {
+            campo.checked = String(value) === "1" || value === true;
+        } else {
+            campo.value = value ?? "";
+        }
+    });
+    formPromo.elements.aplica_alumno_id.value = promo.aplica_alumno_id || promo.alumno_id || "";
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("modalPromocion")).show();
+}
+</script>
+
+{% endblock %}
