@@ -168,8 +168,11 @@ CATEGORIAS_AJUSTE_MANUAL = ["alumno", "profesor", "academia", "liquidacion", "pa
 
 # ---------------- DB ----------------
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database.db")
+
 def get_conn():
-    conn = sqlite3.connect("database.db", timeout=30)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 
